@@ -1,0 +1,29 @@
+{
+  "name": "نادي الاسطورة",
+  "short_name": "نادي الاسطورة",
+  "description": "نادي الاسطورة - لعبة كرة القدم الأونلاين | أنشئ ناديك وقده نحو المجد",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a1628",
+  "theme_color": "#1a8f3f",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": ["games", "sports", "entertainment"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}

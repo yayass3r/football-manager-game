@@ -44,7 +44,7 @@ export default function HomeTab() {
             >
               {currentSeason
                 ? `الموسم ${currentSeason.number} - ${currentSeason.name} 🌟 أثبت مهاراتك وقود فريقك نحو المجد! ⚽`
-                : 'مرحباً بك في مدير كرة القدم! 🏆 أثبت مهاراتك وقود فريقك نحو المجد! ⚽'
+                : 'مرحباً بك في نادي الاسطورة! 🏆 أثبت مهاراتك وقود فريقك نحو المجد! ⚽'
               }
             </motion.div>
           </div>

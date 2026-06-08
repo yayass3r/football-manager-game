@@ -54,7 +54,7 @@ export default function AuthScreen() {
           >
             ⚽
           </motion.div>
-          <h1 className="text-3xl font-bold text-white mb-2">مدير كرة القدم</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">نادي الاسطورة</h1>
           <p className="text-blue-200/70 text-sm">أنشئ ناديك وقده نحو المجد</p>
         </div>
 
@@ -129,7 +129,7 @@ export default function AuthScreen() {
         </motion.div>
 
         <p className="text-center text-white/30 text-xs mt-6">
-          🏆 ابنِ فريقك. اربح البطولات. كن الأسطورة.
+          🏆 ابنِ فريقك. اربح البطولات. كن الأسطورة. ⚽
         </p>
       </motion.div>
     </div>

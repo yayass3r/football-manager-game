@@ -1,13 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Vercel handles the build output automatically
-  // Remove "standalone" for Vercel deployment
+  // For Vercel deployment (serverless)
+  // When building APK, change to: output: "export"
   typescript: {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  // Optimize for serverless
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb",
