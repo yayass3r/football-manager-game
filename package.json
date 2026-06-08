@@ -1,5 +1,5 @@
 {
-  "name": "nextjs_tailwind_shadcn_ts",
+  "name": "legend-club-game",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -14,8 +14,13 @@
     "db:reset": "prisma migrate reset",
     "db:seed": "npx tsx prisma/seed.ts",
     "vercel-build": "prisma generate && prisma db push && next build",
-    "apk:build": "npx cap copy android && cd android && ./gradlew assembleDebug",
-    "apk:release": "npx cap copy android && cd android && ./gradlew assembleRelease"
+    "apk:init": "npx cap add android",
+    "apk:copy": "npx cap copy android",
+    "apk:sync": "npx cap sync android",
+    "apk:open": "npx cap open android",
+    "apk:build": "npm run build:static && npx cap sync android && cd android && ./gradlew assembleDebug",
+    "apk:release": "npm run build:static && npx cap sync android && cd android && ./gradlew assembleRelease",
+    "build:static": "next build"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",
@@ -68,6 +73,7 @@
     "next-auth": "^4.24.11",
     "next-intl": "^4.3.4",
     "next-themes": "^0.4.6",
+    "pg": "^8.21.0",
     "prisma": "^6.11.1",
     "radix-ui": "^1.5.0",
     "react": "^19.0.0",

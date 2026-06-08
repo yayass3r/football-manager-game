@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // For Vercel deployment (serverless)
-  // When building APK, change to: output: "export"
+  // For Vercel deployment: remove the 'output' option (server mode)
+  // For APK build: set output: "export" for static export
+  // The build script handles this automatically
+  output: process.env.NEXT_BUILD_MODE === "export" ? "export" : undefined,
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -11,6 +13,10 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "2mb",
     },
+  },
+  // For static export, images must be unoptimized
+  images: {
+    unoptimized: process.env.NEXT_BUILD_MODE === "export" ? true : false,
   },
 };
 
