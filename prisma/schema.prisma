@@ -1,0 +1,166 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  coins     Int      @default(5000)
+  gems      Int      @default(50)
+  level     Int      @default(1)
+  xp        Int      @default(0)
+  avatar    String   @default("⚽")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  club      Club?
+  achievements UserAchievement[]
+}
+
+model Club {
+  id          String   @id @default(cuid())
+  name        String
+  logo        String   @default("🏟️")
+  primaryColor String  @default("#1a8f3f")
+  secondaryColor String @default("#ffffff")
+  formation   String   @default("4-3-3")
+  morale      Int      @default(75)
+  reputation  Int      @default(50)
+  wins        Int      @default(0)
+  draws       Int      @default(0)
+  losses      Int      @default(0)
+  goalsFor    Int      @default(0)
+  goalsAgainst Int     @default(0)
+  stadiumName String   @default("الملعب الرئيسي")
+  stadiumLevel Int     @default(1)
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  players     Player[]
+  tournaments TournamentParticipant[]
+  homeMatches Match[] @relation("HomeMatches")
+  awayMatches Match[] @relation("AwayMatches")
+  transferListings TransferListing[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Player {
+  id          String   @id @default(cuid())
+  name        String
+  position    String
+  nationality String
+  age         Int
+  overall     Int
+  pace        Int
+  shooting    Int
+  passing     Int
+  dribbling   Int
+  defending   Int
+  physical    Int
+  potential   Int
+  value       Int
+  salary      Int
+  morale      Int      @default(75)
+  fitness     Int      @default(100)
+  form        Int      @default(75)
+  isStarter   Boolean  @default(false)
+  shirtNumber Int?
+  clubId      String
+  club        Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  transferListings TransferListing[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Tournament {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // "league", "cup", "champions", "super"
+  tier        Int      @default(1)
+  maxTeams    Int      @default(16)
+  prize       Int
+  prizeGems   Int      @default(0)
+  season      Int      @default(1)
+  status      String   @default("registration") // registration, active, completed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  participants TournamentParticipant[]
+  matches     Match[]
+}
+
+model TournamentParticipant {
+  id           String   @id @default(cuid())
+  tournamentId String
+  clubId       String
+  groupNumber  Int      @default(1)
+  points       Int      @default(0)
+  played       Int      @default(0)
+  won          Int      @default(0)
+  drawn        Int      @default(0)
+  lost         Int      @default(0)
+  gf           Int      @default(0)
+  ga           Int      @default(0)
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  club         Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@unique([tournamentId, clubId])
+}
+
+model Match {
+  id             String   @id @default(cuid())
+  tournamentId   String?
+  homeClubId     String
+  awayClubId     String
+  homeGoals      Int      @default(0)
+  awayGoals      Int      @default(0)
+  status         String   @default("scheduled") // scheduled, live, completed
+  matchDay       Int      @default(1)
+  events         String   @default("[]")
+  playedAt       DateTime?
+  tournament     Tournament? @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  homeClub       Club     @relation("HomeMatches", fields: [homeClubId], references: [id], onDelete: Cascade)
+  awayClub       Club     @relation("AwayMatches", fields: [awayClubId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+}
+
+model TransferListing {
+  id        String   @id @default(cuid())
+  playerId  String
+  sellerClubId String
+  price     Int
+  status    String   @default("active") // active, sold, cancelled
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  sellerClub Club    @relation(fields: [sellerClubId], references: [id], onDelete: Cascade)
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlocked      Boolean  @default(false)
+  unlockedAt    DateTime?
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+}
+
+model GameEvent {
+  id          String   @id @default(cuid())
+  type        String   // "transfer_window", "double_rewards", "special_tournament"
+  title       String
+  description String
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
