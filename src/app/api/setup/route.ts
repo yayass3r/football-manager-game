@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@/lib/prisma-rest';
 import { execSync } from 'child_process';
 
 const prisma = new PrismaClient();

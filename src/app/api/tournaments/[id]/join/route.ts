@@ -31,9 +31,6 @@ export async function POST(
     // Get tournament
     const tournament = await db.tournament.findUnique({
       where: { id: tournamentId },
-      include: {
-        _count: { select: { participants: true } },
-      },
     })
 
     if (!tournament) {
@@ -51,21 +48,24 @@ export async function POST(
       )
     }
 
+    // Get participant count
+    const participantCount = await db.tournamentParticipant.count({
+      where: { tournamentId },
+    })
+
     // Check if tournament is full
-    if (tournament._count.participants >= tournament.maxTeams) {
+    if (participantCount >= tournament.maxTeams) {
       return NextResponse.json(
         { success: false, error: 'البطولة ممتلئة' },
         { status: 400 }
       )
     }
 
-    // Check if already joined
-    const existingParticipation = await db.tournamentParticipant.findUnique({
+    // Check if already joined - use findFirst with compound where
+    const existingParticipation = await db.tournamentParticipant.findFirst({
       where: {
-        tournamentId_clubId: {
-          tournamentId,
-          clubId: userClub.id,
-        },
+        tournamentId,
+        clubId: userClub.id,
       },
     })
 
@@ -95,7 +95,7 @@ export async function POST(
     })
 
     // Check if tournament is now full and update status
-    const totalParticipants = tournament._count.participants + 1
+    const totalParticipants = participantCount + 1
     if (totalParticipants >= tournament.maxTeams) {
       await db.tournament.update({
         where: { id: tournamentId },

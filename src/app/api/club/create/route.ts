@@ -34,9 +34,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate 22 players for the club
-    const generatedPlayers = generatePlayersForClub()
-
+    // Create the club first (without nested players)
     const club = await db.club.create({
       data: {
         name: name.trim(),
@@ -45,8 +43,17 @@ export async function POST(request: NextRequest) {
         secondaryColor: secondaryColor || '#ffffff',
         formation: formation || '4-3-3',
         userId,
-        players: {
-          create: generatedPlayers.map(player => ({
+      },
+    })
+
+    // Generate and create players separately
+    const generatedPlayers = generatePlayersForClub()
+    const createdPlayers = []
+    
+    for (const player of generatedPlayers) {
+      try {
+        const created = await db.player.create({
+          data: {
             name: player.name,
             position: player.position,
             nationality: player.nationality,
@@ -63,19 +70,21 @@ export async function POST(request: NextRequest) {
             salary: player.salary,
             isStarter: player.isStarter,
             shirtNumber: player.shirtNumber,
-          })),
-        },
-      },
-      include: {
-        players: {
-          orderBy: { isStarter: 'desc' },
-        },
-      },
-    })
+            clubId: club.id,
+          },
+        })
+        createdPlayers.push(created)
+      } catch (e) {
+        console.error('Failed to create player:', e)
+      }
+    }
+
+    // Sort players by isStarter
+    createdPlayers.sort((a: any, b: any) => (b.isStarter ? 1 : 0) - (a.isStarter ? 1 : 0))
 
     return NextResponse.json({
       success: true,
-      data: club,
+      data: { ...club, players: createdPlayers },
     })
   } catch (error) {
     console.error('Create club error:', error)

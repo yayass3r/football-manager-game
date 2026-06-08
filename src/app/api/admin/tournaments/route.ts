@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@/lib/prisma-rest'
 
 const prisma = new PrismaClient()
 
@@ -19,15 +19,49 @@ export async function GET(req: NextRequest) {
     }
 
     const tournaments = await prisma.tournament.findMany({
-      include: {
-        _count: { select: { participants: true, matches: true } },
-      },
       orderBy: { createdAt: 'desc' },
     })
 
+    // Get participant and match counts
+    const tournamentIds = tournaments.map((t: any) => t.id)
+    const participantCounts: Record<string, number> = {}
+    const matchCounts: Record<string, number> = {}
+    
+    if (tournamentIds.length > 0) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (supabaseUrl && supabaseKey) {
+        // Get participant counts
+        const pUrl = `${supabaseUrl}/rest/v1/tournament_participants?select=tournament_id&tournament_id=in.(${tournamentIds.join(',')})`
+        const pRes = await fetch(pUrl, {
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+        })
+        if (pRes.ok) {
+          const data = await pRes.json()
+          for (const row of data) {
+            participantCounts[row.tournament_id] = (participantCounts[row.tournament_id] || 0) + 1
+          }
+        }
+        
+        // Get match counts
+        const mUrl = `${supabaseUrl}/rest/v1/matches?select=tournament_id&tournament_id=in.(${tournamentIds.join(',')})`
+        const mRes = await fetch(mUrl, {
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+        })
+        if (mRes.ok) {
+          const data = await mRes.json()
+          for (const row of data) {
+            if (row.tournament_id) {
+              matchCounts[row.tournament_id] = (matchCounts[row.tournament_id] || 0) + 1
+            }
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      data: tournaments.map(t => ({
+      data: tournaments.map((t: any) => ({
         id: t.id,
         name: t.name,
         type: t.type,
@@ -37,8 +71,8 @@ export async function GET(req: NextRequest) {
         prizeGems: t.prizeGems,
         season: t.season,
         status: t.status,
-        participantCount: t._count.participants,
-        matchCount: t._count.matches,
+        participantCount: participantCounts[t.id] || 0,
+        matchCount: matchCounts[t.id] || 0,
         createdAt: t.createdAt,
       })),
     })

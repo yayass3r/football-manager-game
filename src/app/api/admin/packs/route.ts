@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@/lib/prisma-rest'
 
 const prisma = new PrismaClient()
 
@@ -19,15 +19,35 @@ export async function GET(req: NextRequest) {
     }
 
     const packs = await prisma.playerPack.findMany({
-      include: { _count: { select: { openings: true } } },
       orderBy: { price: 'asc' },
     })
 
+    // Get opening counts
+    const packIds = packs.map((p: any) => p.id)
+    const openingCounts: Record<string, number> = {}
+    
+    if (packIds.length > 0) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (supabaseUrl && supabaseKey) {
+        const url = `${supabaseUrl}/rest/v1/pack_openings?select=pack_id&pack_id=in.(${packIds.join(',')})`
+        const res = await fetch(url, {
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+        })
+        if (res.ok) {
+          const data = await res.json()
+          for (const row of data) {
+            openingCounts[row.pack_id] = (openingCounts[row.pack_id] || 0) + 1
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      data: packs.map(p => ({
+      data: packs.map((p: any) => ({
         ...p,
-        openingCount: p._count.openings,
+        openingCount: openingCounts[p.id] || 0,
       })),
     })
   } catch (error) {
@@ -48,12 +68,12 @@ export async function POST(req: NextRequest) {
     const pack = await prisma.playerPack.create({
       data: {
         name: body.name,
-        type: body.type || 'bronze',
-        price: body.price || 1000,
+        type: body.type,
+        price: body.price,
         gemPrice: body.gemPrice || 0,
-        description: body.description || '',
-        minOverall: body.minOverall || 55,
-        maxOverall: body.maxOverall || 70,
+        description: body.description,
+        minOverall: body.minOverall,
+        maxOverall: body.maxOverall,
         playerCount: body.playerCount || 1,
         isActive: body.isActive !== undefined ? body.isActive : true,
       },

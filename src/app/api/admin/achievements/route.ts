@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@/lib/prisma-rest'
 
 const prisma = new PrismaClient()
 
@@ -19,17 +19,44 @@ export async function GET(req: NextRequest) {
     }
 
     const achievements = await prisma.achievement.findMany({
-      include: {
-        _count: { select: { userAchievements: true } },
-      },
       orderBy: { category: 'asc' },
     })
 
+    // Get unlock counts
+    const achievementIds = achievements.map((a: any) => a.achievementId)
+    const unlockCounts: Record<string, number> = {}
+    
+    if (achievementIds.length > 0) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (supabaseUrl && supabaseKey) {
+        const url = `${supabaseUrl}/rest/v1/user_achievements?select=achievement_id&achievement_id=in.(${achievementIds.join(',')})&unlocked=eq.true`
+        const res = await fetch(url, {
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+        })
+        if (res.ok) {
+          const data = await res.json()
+          for (const row of data) {
+            unlockCounts[row.achievement_id] = (unlockCounts[row.achievement_id] || 0) + 1
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      data: achievements.map(a => ({
-        ...a,
-        unlockedCount: a._count.userAchievements,
+      data: achievements.map((a: any) => ({
+        id: a.id,
+        achievementId: a.achievementId,
+        name: a.name,
+        description: a.description,
+        icon: a.icon,
+        category: a.category,
+        requirement: a.requirement,
+        rewardCoins: a.rewardCoins,
+        rewardGems: a.rewardGems,
+        rewardTitle: a.rewardTitle,
+        unlockedCount: unlockCounts[a.achievementId] || 0,
       })),
     })
   } catch (error) {
@@ -51,13 +78,13 @@ export async function POST(req: NextRequest) {
       data: {
         achievementId: body.achievementId,
         name: body.name,
-        description: body.description || '',
-        icon: body.icon || '🏅',
-        category: body.category || 'special',
+        description: body.description,
+        icon: body.icon || '🏆',
+        category: body.category,
         requirement: body.requirement || 1,
         rewardCoins: body.rewardCoins || 0,
         rewardGems: body.rewardGems || 0,
-        rewardTitle: body.rewardTitle || null,
+        rewardTitle: body.rewardTitle,
       },
     })
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@/lib/prisma-rest'
 
 const prisma = new PrismaClient()
 
@@ -33,7 +33,6 @@ export async function GET(req: NextRequest) {
         where,
         include: {
           user: { select: { id: true, username: true, isBanned: true } },
-          _count: { select: { players: true } },
         },
         orderBy: { reputation: 'desc' },
         skip: (page - 1) * limit,
@@ -42,9 +41,29 @@ export async function GET(req: NextRequest) {
       prisma.club.count({ where }),
     ])
 
+    // Get player counts for each club
+    const clubIds = clubs.map((c: any) => c.id)
+    const playerCounts: Record<string, number> = {}
+    if (clubIds.length > 0) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (supabaseUrl && supabaseKey) {
+        const url = `${supabaseUrl}/rest/v1/players?select=club_id&club_id=in.(${clubIds.join(',')})`
+        const res = await fetch(url, {
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+        })
+        if (res.ok) {
+          const data = await res.json()
+          for (const row of data) {
+            playerCounts[row.club_id] = (playerCounts[row.club_id] || 0) + 1
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      data: clubs.map(c => ({
+      data: clubs.map((c: any) => ({
         id: c.id,
         name: c.name,
         logo: c.logo,
@@ -63,7 +82,7 @@ export async function GET(req: NextRequest) {
         kitStyle: c.kitStyle,
         kitPattern: c.kitPattern,
         seasonPoints: c.seasonPoints,
-        playerCount: c._count.players,
+        playerCount: playerCounts[c.id] || 0,
         owner: c.user,
         createdAt: c.createdAt,
       })),
