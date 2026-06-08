@@ -11,18 +11,23 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  password  String
-  coins     Int      @default(5000)
-  gems      Int      @default(50)
-  level     Int      @default(1)
-  xp        Int      @default(0)
-  avatar    String   @default("⚽")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  club      Club?
-  achievements UserAchievement[]
+  id            String   @id @default(cuid())
+  username      String   @unique
+  password      String
+  coins         Int      @default(5000)
+  gems          Int      @default(50)
+  level         Int      @default(1)
+  xp            Int      @default(0)
+  avatar        String   @default("⚽")
+  soundEnabled  Boolean  @default(true)
+  totalWins     Int      @default(0)
+  totalTrophies Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  club          Club?
+  achievements  UserAchievement[]
+  packOpenings  PackOpening[]
+  leaderboardEntries LeaderboardEntry[]
 }
 
 model Club {
@@ -39,17 +44,23 @@ model Club {
   losses      Int      @default(0)
   goalsFor    Int      @default(0)
   goalsAgainst Int     @default(0)
-  stadiumName String   @default("الملعب الرئيسي")
-  stadiumLevel Int     @default(1)
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  players     Player[]
-  tournaments TournamentParticipant[]
-  homeMatches Match[] @relation("HomeMatches")
-  awayMatches Match[] @relation("AwayMatches")
+  stadiumName  String   @default("الملعب الرئيسي")
+  stadiumLevel Int      @default(1)
+  kitStyle     String   @default("classic")
+  kitPattern   String   @default("plain")
+  seasonPoints Int      @default(0)
+  seasonNumber Int      @default(1)
+  title        String   @default("")
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  players      Player[]
+  tournaments  TournamentParticipant[]
+  homeMatches  Match[]  @relation("HomeMatches")
+  awayMatches  Match[]  @relation("AwayMatches")
   transferListings TransferListing[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  leaderboardEntries LeaderboardEntry[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Player {
@@ -149,9 +160,13 @@ model UserAchievement {
   userId        String
   achievementId String
   unlocked      Boolean  @default(false)
+  claimed       Boolean  @default(false)
   unlockedAt    DateTime?
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [achievementId], onDelete: Cascade)
   createdAt     DateTime @default(now())
+
+  @@unique([userId, achievementId])
 }
 
 model GameEvent {
@@ -163,4 +178,66 @@ model GameEvent {
   endDate     DateTime
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
+}
+
+model PlayerPack {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // "bronze", "silver", "gold", "legendary"
+  price       Int      // coins
+  gemPrice    Int      @default(0) // gems
+  description String
+  minOverall  Int
+  maxOverall  Int
+  playerCount Int      @default(1) // how many players in the pack
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  openings    PackOpening[]
+}
+
+model PackOpening {
+  id          String   @id @default(cuid())
+  userId      String
+  packId      String
+  playersData String   // JSON string of player data generated
+  openedAt    DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pack        PlayerPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+}
+
+model Achievement {
+  id            String   @id @default(cuid())
+  achievementId String   @unique // like "first_win", "10_wins", "champion", etc.
+  name          String
+  description   String
+  icon          String   // emoji
+  category      String   // "matches", "tournaments", "transfers", "training", "special"
+  requirement   Int      // numeric requirement
+  rewardCoins   Int      @default(0)
+  rewardGems    Int      @default(0)
+  rewardTitle   String?  // optional title reward
+  userAchievements UserAchievement[]
+}
+
+model Season {
+  id        String   @id @default(cuid())
+  number    Int
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  status    String   @default("active") // active, ended
+  createdAt DateTime @default(now())
+}
+
+model LeaderboardEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  clubId    String
+  seasonId  String?
+  type      String   // "global", "season", "weekly"
+  score     Int      // composite score (wins*3 + draws + goals)
+  rank      Int      @default(0)
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
 }

@@ -12,6 +12,7 @@ export interface User {
   createdAt: string
   updatedAt: string
   club?: Club | null
+  soundEnabled?: boolean
 }
 
 export interface Club {
@@ -32,6 +33,8 @@ export interface Club {
   stadiumLevel: number
   userId: string
   players: Player[]
+  kitStyle?: string
+  kitPattern?: string
   createdAt: string
   updatedAt: string
 }
@@ -134,7 +137,72 @@ export interface TournamentStanding {
   club: { id: string; name: string; logo: string }
 }
 
-export type TabType = 'home' | 'squad' | 'match' | 'market' | 'tournaments'
+export interface PlayerPack {
+  id: string
+  name: string
+  type: string // "bronze", "silver", "gold", "legendary"
+  price: number
+  gemPrice: number
+  description: string
+  minOverall: number
+  maxOverall: number
+  playerCount: number
+  isActive: boolean
+}
+
+export interface PackOpeningResult {
+  players: Player[]
+  packType: string
+}
+
+export interface AchievementData {
+  id: string
+  achievementId: string
+  name: string
+  description: string
+  icon: string
+  category: string
+  requirement: number
+  rewardCoins: number
+  rewardGems: number
+  rewardTitle: string | null
+  unlocked: boolean
+  unlockedAt: string | null
+  claimed: boolean
+  progress: number // 0-100 percentage
+}
+
+export interface LeaderboardEntry {
+  id: string
+  userId: string
+  clubId: string
+  score: number
+  rank: number
+  type: string
+  user: { username: string; avatar: string }
+  club: { name: string; logo: string; primaryColor: string; wins: number; draws: number; losses: number }
+}
+
+export interface GameEventData {
+  id: string
+  type: string
+  title: string
+  description: string
+  startDate: string
+  endDate: string
+  isActive: boolean
+}
+
+export interface SeasonData {
+  id: string
+  number: number
+  name: string
+  startDate: string
+  endDate: string
+  status: string
+}
+
+export type TabType = 'home' | 'squad' | 'match' | 'market' | 'tournaments' | 'packs' | 'leaderboard' | 'achievements'
 
 export type GameScreen = 'auth' | 'club-creation' | 'main'
 
@@ -179,6 +247,15 @@ interface GameStore {
   authMode: 'login' | 'register'
   selectedPlayer: Player | null
   showPlayerDetail: boolean
+
+  // New state
+  playerPacks: PlayerPack[]
+  packOpeningResult: PackOpeningResult | null
+  achievements: AchievementData[]
+  leaderboard: LeaderboardEntry[]
+  gameEvents: GameEventData[]
+  currentSeason: SeasonData | null
+  showPackOpening: boolean
 
   // Auth
   login: (username: string, password: string) => Promise<void>
@@ -230,6 +307,28 @@ interface GameStore {
 
   // Profile
   fetchProfile: () => Promise<void>
+
+  // Packs
+  fetchPacks: () => Promise<void>
+  openPack: (packId: string) => Promise<void>
+
+  // Achievements
+  fetchAchievements: () => Promise<void>
+  claimAchievement: (achievementId: string) => Promise<void>
+  checkAchievements: () => Promise<void>
+
+  // Leaderboard
+  fetchLeaderboard: (type?: string) => Promise<void>
+  updateLeaderboard: () => Promise<void>
+
+  // Events & Season
+  fetchGameEvents: () => Promise<void>
+  fetchSeason: () => Promise<void>
+  advanceSeason: () => Promise<void>
+
+  // Settings
+  toggleSound: () => Promise<void>
+  updateKit: (kitStyle: string, kitPattern: string) => Promise<void>
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -249,6 +348,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   authMode: 'login',
   selectedPlayer: null,
   showPlayerDetail: false,
+
+  // New state
+  playerPacks: [],
+  packOpeningResult: null,
+  achievements: [],
+  leaderboard: [],
+  gameEvents: [],
+  currentSeason: null,
+  showPackOpening: false,
 
   // Auth
   login: async (username: string, password: string) => {
@@ -310,6 +418,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       transferMarket: [],
       tournaments: [],
       tournamentStandings: {},
+      playerPacks: [],
+      packOpeningResult: null,
+      achievements: [],
+      leaderboard: [],
+      gameEvents: [],
+      currentSeason: null,
+      showPackOpening: false,
     })
   },
 
@@ -578,6 +693,141 @@ export const useGameStore = create<GameStore>((set, get) => ({
       })
     } catch {
       // silent
+    }
+  },
+
+  // Packs
+  fetchPacks: async () => {
+    try {
+      const data = await apiCall('/api/packs')
+      set({ playerPacks: data.data })
+    } catch {
+      // silent
+    }
+  },
+
+  openPack: async (packId: string) => {
+    set({ isLoading: true })
+    try {
+      const data = await apiCall(`/api/packs/${packId}/open`, { method: 'POST' })
+      const result = data.data as PackOpeningResult
+      set({
+        packOpeningResult: result,
+        showPackOpening: true,
+        isLoading: false,
+      })
+      await get().fetchProfile()
+      await get().fetchPlayers()
+    } catch (error) {
+      set({ isLoading: false })
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  // Achievements
+  fetchAchievements: async () => {
+    try {
+      const data = await apiCall('/api/achievements')
+      set({ achievements: data.data })
+    } catch {
+      // silent
+    }
+  },
+
+  claimAchievement: async (achievementId: string) => {
+    try {
+      await apiCall(`/api/achievements/${achievementId}/claim`, { method: 'POST' })
+      await get().fetchAchievements()
+      await get().fetchProfile()
+      get().addNotification('تم استلام مكافأة الإنجاز! 🎉', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  checkAchievements: async () => {
+    try {
+      await apiCall('/api/achievements/check', { method: 'POST' })
+      await get().fetchAchievements()
+    } catch {
+      // silent
+    }
+  },
+
+  // Leaderboard
+  fetchLeaderboard: async (type?: string) => {
+    try {
+      const query = type ? `?type=${type}` : '?type=global'
+      const data = await apiCall(`/api/leaderboard${query}`)
+      set({ leaderboard: data.data })
+    } catch {
+      // silent
+    }
+  },
+
+  updateLeaderboard: async () => {
+    try {
+      await apiCall('/api/leaderboard/update', { method: 'POST' })
+      await get().fetchLeaderboard()
+      get().addNotification('تم تحديث ترتيبك!', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  // Events & Season
+  fetchGameEvents: async () => {
+    try {
+      const data = await apiCall('/api/events')
+      set({ gameEvents: data.data })
+    } catch {
+      // silent
+    }
+  },
+
+  fetchSeason: async () => {
+    try {
+      const data = await apiCall('/api/seasons')
+      set({ currentSeason: data.data })
+    } catch {
+      // silent
+    }
+  },
+
+  advanceSeason: async () => {
+    try {
+      await apiCall('/api/seasons/advance', { method: 'POST' })
+      await get().fetchSeason()
+      get().addNotification('بدأ موسم جديد! 🌟', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  // Settings
+  toggleSound: async () => {
+    try {
+      const data = await apiCall('/api/user/sound-toggle', { method: 'POST' })
+      const updatedUser = data.data as User
+      set({ user: updatedUser })
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  updateKit: async (kitStyle: string, kitPattern: string) => {
+    try {
+      await apiCall('/api/club/kit', {
+        method: 'PUT',
+        body: JSON.stringify({ kitStyle, kitPattern }),
+      })
+      const club = get().club
+      if (club) {
+        set({ club: { ...club, kitStyle, kitPattern } })
+      }
+      get().addNotification('تم تحديث طقم الفريق! 👕', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
     }
   },
 }))

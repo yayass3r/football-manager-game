@@ -12,7 +12,12 @@ import SquadTab from '@/components/game/SquadTab'
 import MatchTab from '@/components/game/MatchTab'
 import MarketTab from '@/components/game/MarketTab'
 import TournamentsTab from '@/components/game/TournamentsTab'
+import PacksTab from '@/components/game/PacksTab'
+import LeaderboardTab from '@/components/game/LeaderboardTab'
+import AchievementsTab from '@/components/game/AchievementsTab'
 import PlayerDetailModal from '@/components/game/PlayerDetailModal'
+import PackOpeningModal from '@/components/game/PackOpeningModal'
+import KitCustomizer from '@/components/game/KitCustomizer'
 
 function TabContent() {
   const { currentTab } = useGameStore()
@@ -32,6 +37,9 @@ function TabContent() {
         {currentTab === 'match' && <MatchTab />}
         {currentTab === 'market' && <MarketTab />}
         {currentTab === 'tournaments' && <TournamentsTab />}
+        {currentTab === 'packs' && <PacksTab />}
+        {currentTab === 'leaderboard' && <LeaderboardTab />}
+        {currentTab === 'achievements' && <AchievementsTab />}
       </motion.div>
     </AnimatePresence>
   )
@@ -59,6 +67,8 @@ function MainGameScreen() {
       </main>
       <BottomNav />
       <PlayerDetailModal />
+      <PackOpeningModal />
+      <KitCustomizer />
     </div>
   )
 }

@@ -1,12 +1,14 @@
 'use client'
 
 import { useGameStore } from '@/lib/game-store'
-import { LogOut, Settings } from 'lucide-react'
+import { LogOut, Volume2, VolumeX } from 'lucide-react'
 
 export default function TopBar() {
-  const { user, club, logout } = useGameStore()
+  const { user, club, logout, toggleSound } = useGameStore()
 
   if (!user || !club) return null
+
+  const soundEnabled = user.soundEnabled !== false
 
   return (
     <div className="sticky top-0 z-40 bg-[#0d1f35]/95 backdrop-blur-xl border-b border-white/10">
@@ -31,8 +33,8 @@ export default function TopBar() {
           </div>
         </div>
 
-        {/* Currency */}
-        <div className="flex items-center gap-3">
+        {/* Currency & Actions */}
+        <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 bg-yellow-500/10 px-2.5 py-1 rounded-full">
             <span className="text-xs">🪙</span>
             <span className="text-yellow-400 text-xs font-bold">{user.coins.toLocaleString()}</span>
@@ -41,6 +43,17 @@ export default function TopBar() {
             <span className="text-xs">💎</span>
             <span className="text-purple-400 text-xs font-bold">{user.gems}</span>
           </div>
+          <button
+            onClick={toggleSound}
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+            title={soundEnabled ? 'كتم الصوت' : 'تشغيل الصوت'}
+          >
+            {soundEnabled ? (
+              <Volume2 className="w-3.5 h-3.5 text-white/40" />
+            ) : (
+              <VolumeX className="w-3.5 h-3.5 text-white/20" />
+            )}
+          </button>
           <button
             onClick={logout}
             className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 transition-colors"
