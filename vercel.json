@@ -1,10 +1,28 @@
 {
-  "buildCommand": "prisma generate && prisma db push && next build",
+  "buildCommand": "prisma generate && prisma db push --accept-data-loss && next build",
   "installCommand": "npm install",
   "framework": "nextjs",
   "regions": ["iad1"],
   "env": {
-    "DATABASE_URL": "@database_url",
-    "DIRECT_URL": "@direct_url"
+    "DATABASE_URL": {
+      "description": "Supabase Connection Pooler URL (port 6543) - Get from: https://supabase.com/dashboard → Settings → Database",
+      "value": ""
+    },
+    "DIRECT_URL": {
+      "description": "Supabase Direct Connection URL (port 5432) - Get from: https://supabase.com/dashboard → Settings → Database",
+      "value": ""
+    },
+    "NEXT_PUBLIC_SUPABASE_URL": {
+      "description": "Supabase Project URL",
+      "value": "https://bzvvxdmbswtdvdrzjyay.supabase.co"
+    },
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": {
+      "description": "Supabase Anon Key (public)",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6dnZ4ZG1ic3d0ZHZkcnpqeWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MDU4NDUsImV4cCI6MjA5NjQ4MTg0NX0.i7mA_W162Sdg5CfmKZ2h0cdhOSTjhnnjaVq_DLHn_IM"
+    },
+    "SUPABASE_SERVICE_ROLE_KEY": {
+      "description": "Supabase Service Role Key (secret - server only!)",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6dnZ4ZG1ic3d0ZHZkcnpqeWF5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDkwNTg0NSwiZXhwIjoyMDk2NDgxODQ1fQ.etKa2JQ4iopCnoXiEalShcLmJKAcNOsB4bsSJJ-V7b8"
+    }
   }
 }
