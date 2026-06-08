@@ -3,7 +3,7 @@
 import { useGameStore, type TabType } from '@/lib/game-store'
 import { motion } from 'framer-motion'
 
-const TABS: { id: TabType; icon: string; label: string }[] = [
+const BASE_TABS: { id: TabType; icon: string; label: string }[] = [
   { id: 'home', icon: '🏠', label: 'الرئيسية' },
   { id: 'squad', icon: '👥', label: 'الفريق' },
   { id: 'match', icon: '⚽', label: 'المباراة' },
@@ -14,14 +14,18 @@ const TABS: { id: TabType; icon: string; label: string }[] = [
   { id: 'achievements', icon: '🏅', label: 'الإنجازات' },
 ]
 
+const ADMIN_TAB: { id: TabType; icon: string; label: string } = { id: 'admin', icon: '👑', label: 'المسؤول' }
+
 export default function BottomNav() {
-  const { currentTab, setTab } = useGameStore()
+  const { currentTab, setTab, user } = useGameStore()
+
+  const tabs = user?.isAdmin ? [...BASE_TABS, ADMIN_TAB] : BASE_TABS
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#0d1f35]/95 backdrop-blur-xl border-t border-white/10">
       <div className="max-w-[480px] mx-auto">
         <div className="flex items-center overflow-x-auto scrollbar-hide px-1 py-1 gap-0.5" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          {TABS.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setTab(tab.id)}
@@ -30,7 +34,7 @@ export default function BottomNav() {
               {currentTab === tab.id && (
                 <motion.div
                   layoutId="activeTab"
-                  className="absolute -top-1 w-8 h-1 rounded-full bg-emerald-400"
+                  className={`absolute -top-1 w-8 h-1 rounded-full ${tab.id === 'admin' ? 'bg-yellow-400' : 'bg-emerald-400'}`}
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 />
               )}
@@ -38,7 +42,9 @@ export default function BottomNav() {
                 {tab.icon}
               </span>
               <span className={`text-[9px] mt-0.5 font-medium transition-colors whitespace-nowrap ${
-                currentTab === tab.id ? 'text-emerald-400' : 'text-white/40'
+                currentTab === tab.id
+                  ? tab.id === 'admin' ? 'text-yellow-400' : 'text-emerald-400'
+                  : 'text-white/40'
               }`}>
                 {tab.label}
               </span>

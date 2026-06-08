@@ -18,6 +18,7 @@ import AchievementsTab from '@/components/game/AchievementsTab'
 import PlayerDetailModal from '@/components/game/PlayerDetailModal'
 import PackOpeningModal from '@/components/game/PackOpeningModal'
 import KitCustomizer from '@/components/game/KitCustomizer'
+import AdminTab from '@/components/game/AdminTab'
 
 function TabContent() {
   const { currentTab } = useGameStore()
@@ -40,6 +41,7 @@ function TabContent() {
         {currentTab === 'packs' && <PacksTab />}
         {currentTab === 'leaderboard' && <LeaderboardTab />}
         {currentTab === 'achievements' && <AchievementsTab />}
+        {currentTab === 'admin' && <AdminTab />}
       </motion.div>
     </AnimatePresence>
   )

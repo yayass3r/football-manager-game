@@ -13,6 +13,9 @@ export interface User {
   updatedAt: string
   club?: Club | null
   soundEnabled?: boolean
+  isAdmin?: boolean
+  isBanned?: boolean
+  banReason?: string
 }
 
 export interface Club {
@@ -202,7 +205,7 @@ export interface SeasonData {
   status: string
 }
 
-export type TabType = 'home' | 'squad' | 'match' | 'market' | 'tournaments' | 'packs' | 'leaderboard' | 'achievements'
+export type TabType = 'home' | 'squad' | 'match' | 'market' | 'tournaments' | 'packs' | 'leaderboard' | 'achievements' | 'admin'
 
 export type GameScreen = 'auth' | 'club-creation' | 'main'
 
@@ -329,6 +332,48 @@ interface GameStore {
   // Settings
   toggleSound: () => Promise<void>
   updateKit: (kitStyle: string, kitPattern: string) => Promise<void>
+
+  // Admin
+  adminTab: string
+  setAdminTab: (tab: string) => void
+  adminDashboard: any | null
+  adminUsers: any[]
+  adminClubs: any[]
+  adminPlayers: any[]
+  adminTournaments: any[]
+  adminPacks: any[]
+  adminEvents: any[]
+  adminAchievements: any[]
+  adminPagination: any
+  fetchAdminDashboard: () => Promise<void>
+  fetchAdminUsers: (page?: number, search?: string, filter?: string) => Promise<void>
+  updateAdminUser: (userId: string, data: any) => Promise<void>
+  deleteAdminUser: (userId: string) => Promise<void>
+  fetchAdminClubs: (page?: number, search?: string) => Promise<void>
+  updateAdminClub: (clubId: string, data: any) => Promise<void>
+  deleteAdminClub: (clubId: string) => Promise<void>
+  fetchAdminPlayers: (page?: number, search?: string, position?: string, minOverall?: number) => Promise<void>
+  createAdminPlayer: (data: any) => Promise<void>
+  updateAdminPlayer: (playerId: string, data: any) => Promise<void>
+  deleteAdminPlayer: (playerId: string) => Promise<void>
+  fetchAdminTournaments: () => Promise<void>
+  createAdminTournament: (data: any) => Promise<void>
+  updateAdminTournament: (tournamentId: string, data: any) => Promise<void>
+  deleteAdminTournament: (tournamentId: string) => Promise<void>
+  fetchAdminPacks: () => Promise<void>
+  createAdminPack: (data: any) => Promise<void>
+  updateAdminPack: (packId: string, data: any) => Promise<void>
+  deleteAdminPack: (packId: string) => Promise<void>
+  fetchAdminEvents: () => Promise<void>
+  createAdminEvent: (data: any) => Promise<void>
+  updateAdminEvent: (eventId: string, data: any) => Promise<void>
+  deleteAdminEvent: (eventId: string) => Promise<void>
+  fetchAdminAchievements: () => Promise<void>
+  createAdminAchievement: (data: any) => Promise<void>
+  updateAdminAchievement: (achievementId: string, data: any) => Promise<void>
+  deleteAdminAchievement: (achievementId: string) => Promise<void>
+  sendAnnouncement: (title: string, message: string, type?: string) => Promise<void>
+  adminEconomyAction: (action: string, userId: string, amount: number) => Promise<void>
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -357,6 +402,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
   gameEvents: [],
   currentSeason: null,
   showPackOpening: false,
+
+  // Admin state
+  adminTab: 'dashboard',
+  adminDashboard: null,
+  adminUsers: [],
+  adminClubs: [],
+  adminPlayers: [],
+  adminTournaments: [],
+  adminPacks: [],
+  adminEvents: [],
+  adminAchievements: [],
+  adminPagination: { page: 1, limit: 20, total: 0, pages: 0 },
 
   // Auth
   login: async (username: string, password: string) => {
@@ -826,6 +883,336 @@ export const useGameStore = create<GameStore>((set, get) => ({
         set({ club: { ...club, kitStyle, kitPattern } })
       }
       get().addNotification('تم تحديث طقم الفريق! 👕', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  // Admin actions
+  setAdminTab: (tab) => set({ adminTab: tab }),
+
+  fetchAdminDashboard: async () => {
+    try {
+      const data = await apiCall('/api/admin/dashboard')
+      set({ adminDashboard: data.data })
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  fetchAdminUsers: async (page = 1, search = '', filter = 'all') => {
+    try {
+      const params = new URLSearchParams({ page: String(page), search, filter })
+      const data = await apiCall(`/api/admin/users?${params}`)
+      set({ adminUsers: data.data, adminPagination: data.pagination })
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  updateAdminUser: async (userId, updateData) => {
+    try {
+      await apiCall(`/api/admin/users/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData),
+      })
+      await get().fetchAdminUsers()
+      get().addNotification('تم تحديث المستخدم بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  deleteAdminUser: async (userId) => {
+    try {
+      await apiCall(`/api/admin/users/${userId}`, { method: 'DELETE' })
+      await get().fetchAdminUsers()
+      get().addNotification('تم حذف المستخدم بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  fetchAdminClubs: async (page = 1, search = '') => {
+    try {
+      const params = new URLSearchParams({ page: String(page), search })
+      const data = await apiCall(`/api/admin/clubs?${params}`)
+      set({ adminClubs: data.data, adminPagination: data.pagination })
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  updateAdminClub: async (clubId, updateData) => {
+    try {
+      await apiCall(`/api/admin/clubs/${clubId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData),
+      })
+      await get().fetchAdminClubs()
+      get().addNotification('تم تحديث النادي بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  deleteAdminClub: async (clubId) => {
+    try {
+      await apiCall(`/api/admin/clubs/${clubId}`, { method: 'DELETE' })
+      await get().fetchAdminClubs()
+      get().addNotification('تم حذف النادي بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  fetchAdminPlayers: async (page = 1, search = '', position = '', minOverall = 0) => {
+    try {
+      const params = new URLSearchParams({ page: String(page), search, position, minOverall: String(minOverall) })
+      const data = await apiCall(`/api/admin/players?${params}`)
+      set({ adminPlayers: data.data, adminPagination: data.pagination })
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  createAdminPlayer: async (data) => {
+    try {
+      await apiCall('/api/admin/players', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+      await get().fetchAdminPlayers()
+      get().addNotification('تم إنشاء اللاعب بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  updateAdminPlayer: async (playerId, updateData) => {
+    try {
+      await apiCall(`/api/admin/players/${playerId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData),
+      })
+      await get().fetchAdminPlayers()
+      get().addNotification('تم تحديث اللاعب بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  deleteAdminPlayer: async (playerId) => {
+    try {
+      await apiCall(`/api/admin/players/${playerId}`, { method: 'DELETE' })
+      await get().fetchAdminPlayers()
+      get().addNotification('تم حذف اللاعب بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  fetchAdminTournaments: async () => {
+    try {
+      const data = await apiCall('/api/admin/tournaments')
+      set({ adminTournaments: data.data })
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  createAdminTournament: async (data) => {
+    try {
+      await apiCall('/api/admin/tournaments', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+      await get().fetchAdminTournaments()
+      get().addNotification('تم إنشاء البطولة بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  updateAdminTournament: async (tournamentId, updateData) => {
+    try {
+      await apiCall(`/api/admin/tournaments/${tournamentId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData),
+      })
+      await get().fetchAdminTournaments()
+      get().addNotification('تم تحديث البطولة بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  deleteAdminTournament: async (tournamentId) => {
+    try {
+      await apiCall(`/api/admin/tournaments/${tournamentId}`, { method: 'DELETE' })
+      await get().fetchAdminTournaments()
+      get().addNotification('تم حذف البطولة بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  fetchAdminPacks: async () => {
+    try {
+      const data = await apiCall('/api/admin/packs')
+      set({ adminPacks: data.data })
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  createAdminPack: async (data) => {
+    try {
+      await apiCall('/api/admin/packs', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+      await get().fetchAdminPacks()
+      get().addNotification('تم إنشاء الحزمة بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  updateAdminPack: async (packId, updateData) => {
+    try {
+      await apiCall(`/api/admin/packs/${packId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData),
+      })
+      await get().fetchAdminPacks()
+      get().addNotification('تم تحديث الحزمة بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  deleteAdminPack: async (packId) => {
+    try {
+      await apiCall(`/api/admin/packs/${packId}`, { method: 'DELETE' })
+      await get().fetchAdminPacks()
+      get().addNotification('تم حذف الحزمة بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  fetchAdminEvents: async () => {
+    try {
+      const data = await apiCall('/api/admin/events')
+      set({ adminEvents: data.data })
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  createAdminEvent: async (data) => {
+    try {
+      await apiCall('/api/admin/events', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+      await get().fetchAdminEvents()
+      get().addNotification('تم إنشاء الحدث بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  updateAdminEvent: async (eventId, updateData) => {
+    try {
+      await apiCall(`/api/admin/events/${eventId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData),
+      })
+      await get().fetchAdminEvents()
+      get().addNotification('تم تحديث الحدث بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  deleteAdminEvent: async (eventId) => {
+    try {
+      await apiCall(`/api/admin/events/${eventId}`, { method: 'DELETE' })
+      await get().fetchAdminEvents()
+      get().addNotification('تم حذف الحدث بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  fetchAdminAchievements: async () => {
+    try {
+      const data = await apiCall('/api/admin/achievements')
+      set({ adminAchievements: data.data })
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  createAdminAchievement: async (data) => {
+    try {
+      await apiCall('/api/admin/achievements', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+      await get().fetchAdminAchievements()
+      get().addNotification('تم إنشاء الإنجاز بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  updateAdminAchievement: async (achievementId, updateData) => {
+    try {
+      await apiCall(`/api/admin/achievements/${achievementId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData),
+      })
+      await get().fetchAdminAchievements()
+      get().addNotification('تم تحديث الإنجاز بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  deleteAdminAchievement: async (achievementId) => {
+    try {
+      await apiCall(`/api/admin/achievements/${achievementId}`, { method: 'DELETE' })
+      await get().fetchAdminAchievements()
+      get().addNotification('تم حذف الإنجاز بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  sendAnnouncement: async (title, message, type = 'announcement') => {
+    try {
+      await apiCall('/api/admin/announcements', {
+        method: 'POST',
+        body: JSON.stringify({ title, message, type }),
+      })
+      get().addNotification('تم إرسال الإعلان بنجاح', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  adminEconomyAction: async (action, userId, amount) => {
+    try {
+      await apiCall('/api/admin/economy', {
+        method: 'POST',
+        body: JSON.stringify({ action, userId, amount }),
+      })
+      await get().fetchAdminUsers()
+      await get().fetchAdminDashboard()
+      get().addNotification('تم تنفيذ الإجراء الاقتصادي بنجاح', 'success')
     } catch (error) {
       get().addNotification((error as Error).message, 'error')
     }

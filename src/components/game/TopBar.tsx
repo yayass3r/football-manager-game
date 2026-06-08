@@ -26,7 +26,10 @@ export default function TopBar() {
             {club.logo}
           </div>
           <div>
-            <h2 className="text-white font-bold text-sm leading-tight">{club.name}</h2>
+            <h2 className="text-white font-bold text-sm leading-tight">
+              {club.name}
+              {user.isAdmin && <span className="text-yellow-400 text-[10px] mr-1">👑</span>}
+            </h2>
             <p className="text-white/40 text-[10px]">
               المستوى {user.level} • XP {user.xp}
             </p>
