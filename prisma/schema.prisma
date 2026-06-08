@@ -6,14 +6,15 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
   id            String   @id @default(cuid())
   username      String   @unique
-   password      String
+  password      String
   coins         Int      @default(5000)
   gems          Int      @default(50)
   level         Int      @default(1)
@@ -25,45 +26,49 @@ model User {
   isAdmin       Boolean  @default(false)
   isBanned      Boolean  @default(false)
   banReason     String   @default("")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
   club          Club?
   achievements  UserAchievement[]
   packOpenings  PackOpening[]
   leaderboardEntries LeaderboardEntry[]
+
+  @@map("users")
 }
 
 model Club {
-  id          String   @id @default(cuid())
-  name        String
-  logo        String   @default("🏟️")
-  primaryColor String  @default("#1a8f3f")
-  secondaryColor String @default("#ffffff")
-  formation   String   @default("4-3-3")
-  morale      Int      @default(75)
-  reputation  Int      @default(50)
-  wins        Int      @default(0)
-  draws       Int      @default(0)
-  losses      Int      @default(0)
-  goalsFor    Int      @default(0)
-  goalsAgainst Int     @default(0)
-  stadiumName  String   @default("الملعب الرئيسي")
-  stadiumLevel Int      @default(1)
-  kitStyle     String   @default("classic")
-  kitPattern   String   @default("plain")
-  seasonPoints Int      @default(0)
-  seasonNumber Int      @default(1)
-  title        String   @default("")
-  userId       String   @unique
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  players      Player[]
-  tournaments  TournamentParticipant[]
-  homeMatches  Match[]  @relation("HomeMatches")
-  awayMatches  Match[]  @relation("AwayMatches")
+  id            String   @id @default(cuid())
+  name          String
+  logo          String   @default("🏟️")
+  primaryColor  String   @default("#1a8f3f") @map("primary_color")
+  secondaryColor String  @default("#ffffff") @map("secondary_color")
+  formation     String   @default("4-3-3")
+  morale        Int      @default(75)
+  reputation    Int      @default(50)
+  wins          Int      @default(0)
+  draws         Int      @default(0)
+  losses        Int      @default(0)
+  goalsFor      Int      @default(0) @map("goals_for")
+  goalsAgainst  Int      @default(0) @map("goals_against")
+  stadiumName   String   @default("الملعب الرئيسي") @map("stadium_name")
+  stadiumLevel  Int      @default(1) @map("stadium_level")
+  kitStyle      String   @default("classic") @map("kit_style")
+  kitPattern    String   @default("plain") @map("kit_pattern")
+  seasonPoints  Int      @default(0) @map("season_points")
+  seasonNumber  Int      @default(1) @map("season_number")
+  title         String   @default("")
+  userId        String   @unique @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  players       Player[]
+  tournaments   TournamentParticipant[]
+  homeMatches   Match[]  @relation("HomeMatches")
+  awayMatches   Match[]  @relation("AwayMatches")
   transferListings TransferListing[]
   leaderboardEntries LeaderboardEntry[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("clubs")
 }
 
 model Player {
@@ -85,36 +90,40 @@ model Player {
   morale      Int      @default(75)
   fitness     Int      @default(100)
   form        Int      @default(75)
-  isStarter   Boolean  @default(false)
-  shirtNumber Int?
-  clubId      String
+  isStarter   Boolean  @default(false) @map("is_starter")
+  shirtNumber Int?     @map("shirt_number")
+  clubId      String   @map("club_id")
   club        Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
   transferListings TransferListing[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("players")
 }
 
 model Tournament {
   id          String   @id @default(cuid())
   name        String
-  type        String   // "league", "cup", "champions", "super"
+  type        String
   tier        Int      @default(1)
-  maxTeams    Int      @default(16)
+  maxTeams    Int      @default(16) @map("max_teams")
   prize       Int
-  prizeGems   Int      @default(0)
+  prizeGems   Int      @default(0) @map("prize_gems")
   season      Int      @default(1)
-  status      String   @default("registration") // registration, active, completed
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status      String   @default("registration")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
   participants TournamentParticipant[]
   matches     Match[]
+
+  @@map("tournaments")
 }
 
 model TournamentParticipant {
   id           String   @id @default(cuid())
-  tournamentId String
-  clubId       String
-  groupNumber  Int      @default(1)
+  tournamentId String   @map("tournament_id")
+  clubId       String   @map("club_id")
+  groupNumber  Int      @default(1) @map("group_number")
   points       Int      @default(0)
   played       Int      @default(0)
   won          Int      @default(0)
@@ -124,123 +133,141 @@ model TournamentParticipant {
   ga           Int      @default(0)
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   club         Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  createdAt    DateTime @default(now())
+  createdAt    DateTime @default(now()) @map("created_at")
 
   @@unique([tournamentId, clubId])
+  @@map("tournament_participants")
 }
 
 model Match {
-  id             String   @id @default(cuid())
-  tournamentId   String?
-  homeClubId     String
-  awayClubId     String
-  homeGoals      Int      @default(0)
-  awayGoals      Int      @default(0)
-  status         String   @default("scheduled") // scheduled, live, completed
-  matchDay       Int      @default(1)
-  events         String   @default("[]")
-  playedAt       DateTime?
+  id             String    @id @default(cuid())
+  tournamentId   String?   @map("tournament_id")
+  homeClubId     String    @map("home_club_id")
+  awayClubId     String    @map("away_club_id")
+  homeGoals      Int       @default(0) @map("home_goals")
+  awayGoals      Int       @default(0) @map("away_goals")
+  status         String    @default("scheduled")
+  matchDay       Int       @default(1) @map("match_day")
+  events         String    @default("[]")
+  playedAt       DateTime? @map("played_at")
   tournament     Tournament? @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  homeClub       Club     @relation("HomeMatches", fields: [homeClubId], references: [id], onDelete: Cascade)
-  awayClub       Club     @relation("AwayMatches", fields: [awayClubId], references: [id], onDelete: Cascade)
-  createdAt      DateTime @default(now())
+  homeClub       Club      @relation("HomeMatches", fields: [homeClubId], references: [id], onDelete: Cascade)
+  awayClub       Club      @relation("AwayMatches", fields: [awayClubId], references: [id], onDelete: Cascade)
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@map("matches")
 }
 
 model TransferListing {
-  id        String   @id @default(cuid())
-  playerId  String
-  sellerClubId String
-  price     Int
-  status    String   @default("active") // active, sold, cancelled
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  sellerClub Club    @relation(fields: [sellerClubId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  playerId    String   @map("player_id")
+  sellerClubId String  @map("seller_club_id")
+  price       Int
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  player      Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  sellerClub  Club     @relation(fields: [sellerClubId], references: [id], onDelete: Cascade)
+
+  @@map("transfer_listings")
 }
 
 model UserAchievement {
-  id            String   @id @default(cuid())
-  userId        String
-  achievementId String
-  unlocked      Boolean  @default(false)
-  claimed       Boolean  @default(false)
-  unlockedAt    DateTime?
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  achievementId String    @map("achievement_id")
+  unlocked      Boolean   @default(false)
+  claimed       Boolean   @default(false)
+  unlockedAt    DateTime? @map("unlocked_at")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   achievement   Achievement @relation(fields: [achievementId], references: [achievementId], onDelete: Cascade)
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now()) @map("created_at")
 
   @@unique([userId, achievementId])
+  @@map("user_achievements")
 }
 
 model GameEvent {
   id          String   @id @default(cuid())
-  type        String   // "transfer_window", "double_rewards", "special_tournament"
+  type        String
   title       String
   description String
-  startDate   DateTime
-  endDate     DateTime
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("game_events")
 }
 
 model PlayerPack {
   id          String   @id @default(cuid())
   name        String
-  type        String   // "bronze", "silver", "gold", "legendary"
-  price       Int      // coins
-  gemPrice    Int      @default(0) // gems
+  type        String
+  price       Int
+  gemPrice    Int      @default(0) @map("gem_price")
   description String
-  minOverall  Int
-  maxOverall  Int
-  playerCount Int      @default(1) // how many players in the pack
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  minOverall  Int      @map("min_overall")
+  maxOverall  Int      @map("max_overall")
+  playerCount Int      @default(1) @map("player_count")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
   openings    PackOpening[]
+
+  @@map("player_packs")
 }
 
 model PackOpening {
   id          String   @id @default(cuid())
-  userId      String
-  packId      String
-  playersData String   // JSON string of player data generated
-  openedAt    DateTime @default(now())
+  userId      String   @map("user_id")
+  packId      String   @map("pack_id")
+  playersData String   @map("players_data")
+  openedAt    DateTime @default(now()) @map("opened_at")
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   pack        PlayerPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+
+  @@map("pack_openings")
 }
 
 model Achievement {
-  id            String   @id @default(cuid())
-  achievementId String   @unique // like "first_win", "10_wins", "champion", etc.
-  name          String
-  description   String
-  icon          String   // emoji
-  category      String   // "matches", "tournaments", "transfers", "training", "special"
-  requirement   Int      // numeric requirement
-  rewardCoins   Int      @default(0)
-  rewardGems    Int      @default(0)
-  rewardTitle   String?  // optional title reward
+  id              String   @id @default(cuid())
+  achievementId   String   @unique @map("achievement_id")
+  name            String
+  description     String
+  icon            String
+  category        String
+  requirement     Int
+  rewardCoins     Int      @default(0) @map("reward_coins")
+  rewardGems      Int      @default(0) @map("reward_gems")
+  rewardTitle     String?  @map("reward_title")
   userAchievements UserAchievement[]
+
+  @@map("achievements")
 }
 
 model Season {
   id        String   @id @default(cuid())
   number    Int
   name      String
-  startDate DateTime
-  endDate   DateTime
-  status    String   @default("active") // active, ended
-  createdAt DateTime @default(now())
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+  status    String   @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("seasons")
 }
 
 model LeaderboardEntry {
   id        String   @id @default(cuid())
-  userId    String
-  clubId    String
-  seasonId  String?
-  type      String   // "global", "season", "weekly"
-  score     Int      // composite score (wins*3 + draws + goals)
+  userId    String   @map("user_id")
+  clubId    String   @map("club_id")
+  seasonId  String?  @map("season_id")
+  type      String
+  score     Int
   rank      Int      @default(0)
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @updatedAt @map("updated_at")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@map("leaderboard_entries")
 }
