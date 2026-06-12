@@ -8,15 +8,16 @@ import { Input } from '@/components/ui/input'
 
 export default function AuthScreen() {
   const { authMode, setAuthMode, login, register, isLoading } = useGameStore()
+  const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (authMode === 'login') {
-      await login(username, password)
+      await login(email, password)
     } else {
-      await register(username, password)
+      await register(email, password, username || undefined)
     }
   }
 
@@ -91,16 +92,28 @@ export default function AuthScreen() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-white/80 text-sm mb-1.5 block">اسم المستخدم</label>
+              <label className="text-white/80 text-sm mb-1.5 block">البريد الإلكتروني</label>
               <Input
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="أدخل اسم المستخدم"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="أدخل البريد الإلكتروني"
                 className="bg-white/10 border-white/10 text-white placeholder:text-white/30 focus:border-emerald-400 focus:ring-emerald-400/20 h-12 rounded-xl"
                 required
-                minLength={3}
               />
             </div>
+            {authMode === 'register' && (
+              <div>
+                <label className="text-white/80 text-sm mb-1.5 block">اسم المستخدم (اختياري)</label>
+                <Input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="سيتم إنشاؤه من البريد إن لم تدخله"
+                  className="bg-white/10 border-white/10 text-white placeholder:text-white/30 focus:border-emerald-400 focus:ring-emerald-400/20 h-12 rounded-xl"
+                  minLength={3}
+                />
+              </div>
+            )}
             <div>
               <label className="text-white/80 text-sm mb-1.5 block">كلمة المرور</label>
               <Input

@@ -5,18 +5,20 @@ import { hashPassword } from '@/lib/auth'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { username, password } = body
+    const { email, password, username } = body
 
-    if (!username || !password) {
+    if (!email || !password) {
       return NextResponse.json(
-        { success: false, error: 'اسم المستخدم وكلمة المرور مطلوبان' },
+        { success: false, error: 'البريد الإلكتروني وكلمة المرور مطلوبان' },
         { status: 400 }
       )
     }
 
-    if (username.length < 3) {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
       return NextResponse.json(
-        { success: false, error: 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل' },
+        { success: false, error: 'صيغة البريد الإلكتروني غير صحيحة' },
         { status: 400 }
       )
     }
@@ -28,22 +30,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if email already exists
     const existingUser = await db.user.findUnique({
-      where: { username },
+      where: { email },
     })
 
     if (existingUser) {
       return NextResponse.json(
-        { success: false, error: 'اسم المستخدم موجود بالفعل' },
+        { success: false, error: 'البريد الإلكتروني مسجل بالفعل' },
         { status: 409 }
       )
     }
+
+    // Auto-generate username from email if not provided
+    const finalUsername = username || email.split('@')[0]
 
     const hashedPassword = await hashPassword(password)
 
     const user = await db.user.create({
       data: {
-        username,
+        username: finalUsername,
+        email,
         password: hashedPassword,
         coins: 5000,
         gems: 50,

@@ -5,23 +5,23 @@ import { comparePassword } from '@/lib/auth'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { username, password } = body
+    const { email, password } = body
 
-    if (!username || !password) {
+    if (!email || !password) {
       return NextResponse.json(
-        { success: false, error: 'اسم المستخدم وكلمة المرور مطلوبان' },
+        { success: false, error: 'البريد الإلكتروني وكلمة المرور مطلوبان' },
         { status: 400 }
       )
     }
 
     const user = await db.user.findUnique({
-      where: { username },
+      where: { email },
       include: { club: true },
     })
 
     if (!user) {
       return NextResponse.json(
-        { success: false, error: 'اسم المستخدم أو كلمة المرور غير صحيحة' },
+        { success: false, error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' },
         { status: 401 }
       )
     }
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     if (!isValid) {
       return NextResponse.json(
-        { success: false, error: 'اسم المستخدم أو كلمة المرور غير صحيحة' },
+        { success: false, error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' },
         { status: 401 }
       )
     }

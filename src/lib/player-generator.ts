@@ -12,6 +12,16 @@ interface GeneratedPlayer {
   dribbling: number
   defending: number
   physical: number
+  freeKick: number
+  penalties: number
+  heading: number
+  longShots: number
+  positioning: number
+  vision: number
+  crossing: number
+  tackling: number
+  stamina: number
+  agility: number
   potential: number
   value: number
   salary: number
@@ -94,7 +104,7 @@ function generateNationality(): string {
   return nationalities[randomInt(0, nationalities.length - 1)]
 }
 
-// Position-based stat weights (how important each stat is for that position)
+// Position-based stat weights for core stats
 const positionStatWeights: Record<string, { pace: number; shooting: number; passing: number; dribbling: number; defending: number; physical: number }> = {
   GK: { pace: 0.2, shooting: 0.05, passing: 0.3, dribbling: 0.1, defending: 0.2, physical: 0.8 },
   CB: { pace: 0.4, shooting: 0.15, passing: 0.4, dribbling: 0.2, defending: 0.9, physical: 0.8 },
@@ -107,13 +117,29 @@ const positionStatWeights: Record<string, { pace: number; shooting: number; pass
   CF: { pace: 0.5, shooting: 0.8, passing: 0.5, dribbling: 0.7, defending: 0.1, physical: 0.6 },
 }
 
+// Position-based weights for new skills
+const positionNewSkillWeights: Record<string, { freeKick: number; penalties: number; heading: number; longShots: number; positioning: number; vision: number; crossing: number; tackling: number; stamina: number; agility: number }> = {
+  GK: { freeKick: 0.1, penalties: 0.1, heading: 0.4, longShots: 0.05, positioning: 0.9, vision: 0.3, crossing: 0.05, tackling: 0.1, stamina: 0.6, agility: 0.7 },
+  CB: { freeKick: 0.2, penalties: 0.1, heading: 0.9, longShots: 0.1, positioning: 0.8, vision: 0.3, crossing: 0.2, tackling: 0.9, stamina: 0.7, agility: 0.4 },
+  LB: { freeKick: 0.3, penalties: 0.15, heading: 0.4, longShots: 0.2, positioning: 0.6, vision: 0.5, crossing: 0.8, tackling: 0.7, stamina: 0.8, agility: 0.7 },
+  RB: { freeKick: 0.3, penalties: 0.15, heading: 0.4, longShots: 0.2, positioning: 0.6, vision: 0.5, crossing: 0.8, tackling: 0.7, stamina: 0.8, agility: 0.7 },
+  CM: { freeKick: 0.5, penalties: 0.4, heading: 0.3, longShots: 0.5, positioning: 0.7, vision: 0.9, crossing: 0.4, tackling: 0.5, stamina: 0.8, agility: 0.6 },
+  LM: { freeKick: 0.6, penalties: 0.4, heading: 0.2, longShots: 0.5, positioning: 0.5, vision: 0.6, crossing: 0.7, tackling: 0.2, stamina: 0.7, agility: 0.8 },
+  RM: { freeKick: 0.6, penalties: 0.4, heading: 0.2, longShots: 0.5, positioning: 0.5, vision: 0.6, crossing: 0.7, tackling: 0.2, stamina: 0.7, agility: 0.8 },
+  ST: { freeKick: 0.5, penalties: 0.8, heading: 0.7, longShots: 0.8, positioning: 0.7, vision: 0.3, crossing: 0.1, tackling: 0.05, stamina: 0.7, agility: 0.6 },
+  CF: { freeKick: 0.6, penalties: 0.7, heading: 0.5, longShots: 0.7, positioning: 0.6, vision: 0.6, crossing: 0.2, tackling: 0.05, stamina: 0.6, agility: 0.7 },
+}
+
 function generateStatsForPosition(position: string, baseOverall: number): {
   pace: number; shooting: number; passing: number; dribbling: number; defending: number; physical: number
+  freeKick: number; penalties: number; heading: number; longShots: number; positioning: number
+  vision: number; crossing: number; tackling: number; stamina: number; agility: number
 } {
   const weights = positionStatWeights[position] || positionStatWeights['CM']
-  
-  // Generate stats weighted by position importance, then normalize to approximate the base overall
-  const rawStats = {
+  const newWeights = positionNewSkillWeights[position] || positionNewSkillWeights['CM']
+
+  // Generate core stats
+  const rawStats: Record<string, number> = {
     pace: randomInt(45, 85),
     shooting: randomInt(45, 85),
     passing: randomInt(45, 85),
@@ -121,16 +147,37 @@ function generateStatsForPosition(position: string, baseOverall: number): {
     defending: randomInt(45, 85),
     physical: randomInt(45, 85),
   }
-  
-  // Apply position weights - boost important stats, reduce less important ones
+
+  // Apply position weights for core stats
   const adjusted: Record<string, number> = {}
   for (const [stat, rawValue] of Object.entries(rawStats)) {
     const weight = weights[stat as keyof typeof weights] || 0.5
-    // Weighted adjustment: if weight > 0.5, boost toward baseOverall; if < 0.5, reduce
     const adjustment = (baseOverall - rawValue) * weight * 0.6
     adjusted[stat] = Math.min(99, Math.max(35, Math.round(rawValue + adjustment)))
   }
-  
+
+  // Generate new skills with position-based weighting
+  const newSkillDefaults: Record<string, number> = {
+    freeKick: 50,
+    penalties: 50,
+    heading: 50,
+    longShots: 50,
+    positioning: 50,
+    vision: 50,
+    crossing: 50,
+    tackling: 50,
+    stamina: 75,
+    agility: 75,
+  }
+
+  const newStats: Record<string, number> = {}
+  for (const [stat, defaultVal] of Object.entries(newSkillDefaults)) {
+    const weight = newWeights[stat as keyof typeof newWeights] || 0.5
+    const rawValue = randomInt(defaultVal - 20, defaultVal + 20)
+    const adjustment = (baseOverall - rawValue) * weight * 0.5
+    newStats[stat] = Math.min(99, Math.max(25, Math.round(rawValue + adjustment)))
+  }
+
   return {
     pace: adjusted.pace,
     shooting: adjusted.shooting,
@@ -138,6 +185,16 @@ function generateStatsForPosition(position: string, baseOverall: number): {
     dribbling: adjusted.dribbling,
     defending: adjusted.defending,
     physical: adjusted.physical,
+    freeKick: newStats.freeKick,
+    penalties: newStats.penalties,
+    heading: newStats.heading,
+    longShots: newStats.longShots,
+    positioning: newStats.positioning,
+    vision: newStats.vision,
+    crossing: newStats.crossing,
+    tackling: newStats.tackling,
+    stamina: newStats.stamina,
+    agility: newStats.agility,
   }
 }
 
@@ -148,7 +205,7 @@ export function generatePlayersForClub(): GeneratedPlayer[] {
 
   for (const { position, count } of positionDistribution) {
     const availableNumbers = positionShirtNumbers[position] || []
-    
+
     for (let i = 0; i < count; i++) {
       const overall = randomInt(55, 85)
       const stats = generateStatsForPosition(position, overall)
@@ -156,7 +213,7 @@ export function generatePlayersForClub(): GeneratedPlayer[] {
       const age = randomInt(18, 34)
       const value = overall * 10000
       const salary = Math.round(overall * 500 + randomInt(0, 5000))
-      
+
       // Assign shirt number
       let shirtNumber: number | null = null
       for (const num of availableNumbers) {
@@ -171,7 +228,7 @@ export function generatePlayersForClub(): GeneratedPlayer[] {
         while (usedShirtNumbers.has(shirtNumber)) shirtNumber++
         usedShirtNumbers.add(shirtNumber)
       }
-      
+
       players.push({
         name: generatePlayerName(),
         position,
@@ -185,10 +242,10 @@ export function generatePlayersForClub(): GeneratedPlayer[] {
         isStarter: shirtIdx < 11, // First 11 are starters
         shirtNumber,
       })
-      
+
       shirtIdx++
     }
   }
-  
+
   return players
 }

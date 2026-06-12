@@ -28,6 +28,7 @@ export async function POST() {
     // Create a unique AI user
     const suffix = Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
     const username = `ai_${suffix}`
+    const email = `ai_${suffix}@opponent.game`
     const password = `ai_${suffix}_pass`
 
     const hashedPassword = await hashPassword(password)
@@ -35,6 +36,7 @@ export async function POST() {
     const user = await db.user.create({
       data: {
         username,
+        email,
         password: hashedPassword,
         coins: 0,
         gems: 0,
@@ -67,6 +69,16 @@ export async function POST() {
             dribbling: player.dribbling,
             defending: player.defending,
             physical: player.physical,
+            freeKick: player.freeKick,
+            penalties: player.penalties,
+            heading: player.heading,
+            longShots: player.longShots,
+            positioning: player.positioning,
+            vision: player.vision,
+            crossing: player.crossing,
+            tackling: player.tackling,
+            stamina: player.stamina,
+            agility: player.agility,
             potential: player.potential,
             value: player.value,
             salary: player.salary,

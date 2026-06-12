@@ -106,6 +106,17 @@ function generatePlayerForPack(minOverall: number, maxOverall: number) {
   else if (overall >= 78) rarity = 'epic'
   else if (overall >= 70) rarity = 'rare'
 
+  // Generate new skills with position-based weighting
+  const newSkillDefaults: Record<string, number> = {
+    freeKick: 50, penalties: 50, heading: 50, longShots: 50,
+    positioning: 50, vision: 50, crossing: 50, tackling: 50,
+    stamina: 75, agility: 75,
+  }
+  const newStats: Record<string, number> = {}
+  for (const [stat, defaultVal] of Object.entries(newSkillDefaults)) {
+    newStats[stat] = Math.min(99, Math.max(25, randomInt(defaultVal - 15, defaultVal + 15)))
+  }
+
   return {
     name: generatePlayerName(),
     position,
@@ -113,6 +124,16 @@ function generatePlayerForPack(minOverall: number, maxOverall: number) {
     age,
     overall,
     ...stats,
+    freeKick: newStats.freeKick,
+    penalties: newStats.penalties,
+    heading: newStats.heading,
+    longShots: newStats.longShots,
+    positioning: newStats.positioning,
+    vision: newStats.vision,
+    crossing: newStats.crossing,
+    tackling: newStats.tackling,
+    stamina: newStats.stamina,
+    agility: newStats.agility,
     potential,
     value,
     salary,

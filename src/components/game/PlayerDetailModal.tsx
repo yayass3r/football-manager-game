@@ -28,6 +28,19 @@ const STAT_LABELS: Record<string, string> = {
   physical: '💪 البدنية',
 }
 
+const NEW_SKILL_LABELS: Record<string, string> = {
+  freeKick: '🥅 ركلة حرة',
+  penalties: '⚽ ركلات جزاء',
+  heading: '🤺 الرأسية',
+  longShots: '🏹 التسديد البعيد',
+  positioning: '📍 التمركز',
+  vision: '👁️ الرؤية',
+  crossing: '↗️ العرضيات',
+  tackling: '🦶 الخطف',
+  stamina: '💓 اللياقة البدنية',
+  agility: '🔄 الرشاقة',
+}
+
 function getOverallBg(overall: number): string {
   if (overall >= 85) return 'from-yellow-500 via-yellow-400 to-yellow-600'
   if (overall >= 75) return 'from-gray-300 via-gray-200 to-gray-400'
@@ -90,7 +103,7 @@ export default function PlayerDetailModal() {
 
   return (
     <Dialog open={showPlayerDetail} onOpenChange={setShowPlayerDetail}>
-      <DialogContent className="bg-[#0d1f35] border-white/10 text-white max-w-[360px] p-0 overflow-hidden rounded-2xl">
+      <DialogContent className="bg-[#0d1f35] border-white/10 text-white max-w-[360px] p-0 overflow-hidden rounded-2xl max-h-[90vh] overflow-y-auto">
         {/* Header with gradient */}
         <div className="relative pt-6 pb-4 px-5"
           style={{
@@ -150,11 +163,19 @@ export default function PlayerDetailModal() {
           </div>
         </div>
 
-        {/* Stats */}
+        {/* Core Stats */}
         <div className="px-5 py-4 space-y-2.5">
-          <h4 className="text-white/60 text-xs font-bold mb-2">الإحصائيات</h4>
+          <h4 className="text-white/60 text-xs font-bold mb-2">الإحصائيات الأساسية</h4>
           {Object.entries(STAT_LABELS).map(([key, label]) => (
             <StatBar key={key} label={label} value={player[key as keyof Player] as number} />
+          ))}
+        </div>
+
+        {/* New Skills */}
+        <div className="px-5 pb-4 space-y-2.5">
+          <h4 className="text-white/60 text-xs font-bold mb-2">المهارات المتقدمة</h4>
+          {Object.entries(NEW_SKILL_LABELS).map(([key, label]) => (
+            <StatBar key={key} label={label} value={(player[key as keyof Player] as number) || 50} />
           ))}
         </div>
 

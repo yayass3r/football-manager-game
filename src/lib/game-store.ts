@@ -3,7 +3,8 @@ import { create } from 'zustand'
 // Types
 export interface User {
   id: string
-  username: string
+  username: string | null
+  email: string
   coins: number
   gems: number
   level: number
@@ -55,6 +56,16 @@ export interface Player {
   dribbling: number
   defending: number
   physical: number
+  freeKick: number
+  penalties: number
+  heading: number
+  longShots: number
+  positioning: number
+  vision: number
+  crossing: number
+  tackling: number
+  stamina: number
+  agility: number
   potential: number
   value: number
   salary: number
@@ -261,8 +272,8 @@ interface GameStore {
   showPackOpening: boolean
 
   // Auth
-  login: (username: string, password: string) => Promise<void>
-  register: (username: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<void>
+  register: (email: string, password: string, username?: string) => Promise<void>
   logout: () => void
   setAuthMode: (mode: 'login' | 'register') => void
 
@@ -416,12 +427,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   adminPagination: { page: 1, limit: 20, total: 0, pages: 0 },
 
   // Auth
-  login: async (username: string, password: string) => {
+  login: async (email: string, password: string) => {
     set({ isLoading: true })
     try {
       const data = await apiCall('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password }),
       })
       const user = data.data as User
       localStorage.setItem('userId', user.id)
@@ -439,12 +450,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  register: async (username: string, password: string) => {
+  register: async (email: string, password: string, username?: string) => {
     set({ isLoading: true })
     try {
       const data = await apiCall('/api/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password, username }),
       })
       const user = data.data as User
       localStorage.setItem('userId', user.id)

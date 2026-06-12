@@ -26,6 +26,7 @@ const tableMap: Record<string, string> = {
   achievement: 'achievements',
   season: 'seasons',
   leaderboardEntry: 'leaderboard_entries',
+  playerStat: 'player_stats',
 }
 
 // Reverse mapping: table name -> model name
@@ -58,10 +59,12 @@ const relationMap: Record<string, Record<string, RelationConfig>> = {
     awayMatches: { tableName: 'matches', foreignKey: 'away_club_id', fkeyConstraint: 'matches_away_club_id_fkey', isMany: true },
     transferListings: { tableName: 'transfer_listings', foreignKey: 'seller_club_id', isMany: true },
     leaderboardEntries: { tableName: 'leaderboard_entries', foreignKey: 'club_id', isMany: true },
+    playerStats: { tableName: 'player_stats', foreignKey: 'club_id', isMany: true },
   },
   player: {
     club: { tableName: 'clubs', thisKey: 'club_id', isMany: false },
     transferListings: { tableName: 'transfer_listings', foreignKey: 'player_id', isMany: true },
+    playerStats: { tableName: 'player_stats', foreignKey: 'player_id', isMany: true },
   },
   tournament: {
     participants: { tableName: 'tournament_participants', foreignKey: 'tournament_id', isMany: true },
@@ -96,6 +99,10 @@ const relationMap: Record<string, Record<string, RelationConfig>> = {
     userAchievements: { tableName: 'user_achievements', foreignKey: 'achievement_id', isMany: true },
   },
   season: {},
+  playerStat: {
+    player: { tableName: 'players', thisKey: 'player_id', isMany: false },
+    club: { tableName: 'clubs', thisKey: 'club_id', isMany: false },
+  },
   leaderboardEntry: {
     user: { tableName: 'users', thisKey: 'user_id', isMany: false },
     club: { tableName: 'clubs', thisKey: 'club_id', isMany: false },
@@ -117,6 +124,7 @@ const dateFields: Record<string, string[]> = {
   pack_openings: ['opened_at'],
   achievements: [],
   seasons: ['start_date', 'end_date', 'created_at'],
+  player_stats: ['created_at'],
   leaderboard_entries: ['updated_at'],
 }
 
@@ -1081,6 +1089,7 @@ export class PrismaClient {
   achievement: ModelDelegate
   season: ModelDelegate
   leaderboardEntry: ModelDelegate
+  playerStat: ModelDelegate
   
   constructor() {
     this.user = new ModelDelegate('user')
@@ -1097,6 +1106,7 @@ export class PrismaClient {
     this.achievement = new ModelDelegate('achievement')
     this.season = new ModelDelegate('season')
     this.leaderboardEntry = new ModelDelegate('leaderboardEntry')
+    this.playerStat = new ModelDelegate('playerStat')
   }
   
   async $disconnect(): Promise<void> {

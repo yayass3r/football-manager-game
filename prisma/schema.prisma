@@ -13,7 +13,8 @@ datasource db {
 
 model User {
   id            String   @id @default(cuid())
-  username      String   @unique
+  username      String?
+  email         String   @unique
   password      String
   coins         Int      @default(5000)
   gems          Int      @default(50)
@@ -65,6 +66,7 @@ model Club {
   awayMatches   Match[]  @relation("AwayMatches")
   transferListings TransferListing[]
   leaderboardEntries LeaderboardEntry[]
+  playerStats    PlayerStat[]
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -84,6 +86,16 @@ model Player {
   dribbling   Int
   defending   Int
   physical    Int
+  freeKick    Int      @default(50) @map("free_kick")
+  penalties   Int      @default(50)
+  heading     Int      @default(50)
+  longShots   Int      @default(50) @map("long_shots")
+  positioning Int      @default(50)
+  vision      Int      @default(50)
+  crossing    Int      @default(50)
+  tackling    Int      @default(50)
+  stamina     Int      @default(75)
+  agility     Int      @default(75)
   potential   Int
   value       Int
   salary      Int
@@ -95,6 +107,7 @@ model Player {
   clubId      String   @map("club_id")
   club        Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
   transferListings TransferListing[]
+  playerStats PlayerStat[]
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -270,4 +283,24 @@ model LeaderboardEntry {
   club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
   @@map("leaderboard_entries")
+}
+
+model PlayerStat {
+  id            String   @id @default(cuid())
+  playerId      String   @map("player_id")
+  clubId        String   @map("club_id")
+  seasonId      String?  @map("season_id")
+  matchesPlayed Int      @default(0) @map("matches_played")
+  goals         Int      @default(0)
+  assists       Int      @default(0)
+  cleanSheets   Int      @default(0) @map("clean_sheets")
+  yellowCards   Int      @default(0) @map("yellow_cards")
+  redCards      Int      @default(0) @map("red_cards")
+  minutesPlayed Int      @default(0) @map("minutes_played")
+  saves         Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at")
+  player        Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  club          Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@map("player_stats")
 }
