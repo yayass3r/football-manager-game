@@ -10,7 +10,7 @@ const AI_NAMES = [
   'الوحوش', 'الفرسان', 'الأمل', 'القمة',
 ]
 
-const AI_LOGOS = ['🦅', '🦁', '🐺', '⚔️', '🦅', '🦸', '⭐', '⚡', '🌪️', '💫', '🌟', '🕊️', '🐲', '🐎', '🌅', '🏔️']
+const AI_LOGOS = ['🦅', '🦁', '🐺', '⚔️', '🦸', '⭐', '⚡', '🌪️', '💫', '🌟', '🕊️', '🐲', '🐎', '🌅', '🏔️', '🔥']
 
 const AI_COLORS = [
   '#e74c3c', '#3498db', '#9b59b6', '#e67e22', '#1abc9c',
@@ -25,7 +25,44 @@ function randomInt(min: number, max: number) {
 
 export async function POST() {
   try {
-    // Create a unique AI user
+    // FIX: Reuse existing AI clubs instead of creating new ones every time
+    // Check how many AI clubs exist
+    const existingAiClubs = await db.club.findMany({
+      where: {
+        user: {
+          username: { startsWith: 'ai_' },
+        },
+      },
+      include: {
+        players: {
+          where: { isStarter: true },
+        },
+      },
+    })
+
+    // If we have enough AI clubs (50+), pick random ones to return
+    if (existingAiClubs.length >= 10) {
+      // Pick a random existing AI club
+      const randomClub = existingAiClubs[randomInt(0, existingAiClubs.length - 1)]
+      const starters = randomClub.players
+      const avgOverall = starters.length > 0
+        ? Math.round(starters.reduce((s, p) => s + p.overall, 0) / starters.length)
+        : 50
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          id: randomClub.id,
+          name: randomClub.name,
+          logo: randomClub.logo,
+          primaryColor: randomClub.primaryColor,
+          formation: randomClub.formation,
+          avgOverall,
+        },
+      })
+    }
+
+    // Need to create more AI clubs (first time or low count)
     const suffix = Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
     const username = `ai_${suffix}`
     const email = `ai_${suffix}@opponent.game`
@@ -48,6 +85,7 @@ export async function POST() {
 
     const generatedPlayers = generatePlayersForClub()
 
+    // Create club with players one by one (more reliable)
     const club = await db.club.create({
       data: {
         name: AI_NAMES[nameIdx],
@@ -56,8 +94,14 @@ export async function POST() {
         secondaryColor: '#ffffff',
         formation: FORMATIONS[randomInt(0, FORMATIONS.length - 1)],
         userId: user.id,
-        players: {
-          create: generatedPlayers.map(player => ({
+      },
+    })
+
+    // Create players individually
+    for (const player of generatedPlayers) {
+      try {
+        await db.player.create({
+          data: {
             name: player.name,
             position: player.position,
             nationality: player.nationality,
@@ -84,18 +128,17 @@ export async function POST() {
             salary: player.salary,
             isStarter: player.isStarter,
             shirtNumber: player.shirtNumber,
-          })),
-        },
-      },
-      include: {
-        players: true,
-      },
-    })
+            clubId: club.id,
+          },
+        })
+      } catch (e) {
+        console.error('Failed to create AI player:', e)
+      }
+    }
 
-    // Calculate average overall of starters for display
-    const starters = club.players.filter(p => p.isStarter)
-    const avgOverall = starters.length > 0
-      ? Math.round(starters.reduce((s, p) => s + p.overall, 0) / starters.length)
+    // Calculate average overall
+    const avgOverall = generatedPlayers.filter(p => p.isStarter).length > 0
+      ? Math.round(generatedPlayers.filter(p => p.isStarter).reduce((s, p) => s + p.overall, 0) / generatedPlayers.filter(p => p.isStarter).length)
       : 50
 
     return NextResponse.json({

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     const user = await db.user.findUnique({
       where: { email },
-      include: { club: true },
+      include: { club: { include: { players: true } } },
     })
 
     if (!user) {

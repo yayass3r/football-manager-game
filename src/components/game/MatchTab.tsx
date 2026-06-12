@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useGameStore, type MatchEvent } from '@/lib/game-store'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Play } from 'lucide-react'
+import { Play, Zap } from 'lucide-react'
 
 interface AiOpponent {
   id: string
@@ -39,8 +39,80 @@ function getDifficultyLabel(overall: number): string {
   return 'سهل'
 }
 
+// Energy system constants
+const MAX_ENERGY = 10
+const ENERGY_REGEN_MINUTES = 30 // 1 energy every 30 min
+const MATCH_COST = 1
+
+function getEnergyInfo(): { energy: number; maxRefillAt: Date | null } {
+  if (typeof window === 'undefined') return { energy: MAX_ENERGY, maxRefillAt: null }
+  
+  const lastEnergyStr = localStorage.getItem('lastEnergyTime')
+  const lastEnergy = lastEnergyStr ? parseInt(lastEnergyStr) : Date.now()
+  
+  if (!lastEnergyStr) {
+    localStorage.setItem('lastEnergyTime', String(Date.now()))
+    localStorage.setItem('currentEnergy', String(MAX_ENERGY))
+    return { energy: MAX_ENERGY, maxRefillAt: null }
+  }
+
+  const currentEnergyStr = localStorage.getItem('currentEnergy')
+  let currentEnergy = currentEnergyStr ? parseInt(currentEnergyStr) : MAX_ENERGY
+  
+  // Calculate regen
+  const elapsed = Date.now() - lastEnergy
+  const regenAmount = Math.floor(elapsed / (ENERGY_REGEN_MINUTES * 60 * 1000))
+  
+  if (regenAmount > 0 && currentEnergy < MAX_ENERGY) {
+    currentEnergy = Math.min(MAX_ENERGY, currentEnergy + regenAmount)
+    localStorage.setItem('currentEnergy', String(currentEnergy))
+    localStorage.setItem('lastEnergyTime', String(Date.now()))
+  }
+
+  // Calculate next refill time
+  const remainingMs = (ENERGY_REGEN_MINUTES * 60 * 1000) - (elapsed % (ENERGY_REGEN_MINUTES * 60 * 1000))
+  const maxRefillAt = currentEnergy < MAX_ENERGY ? new Date(Date.now() + remainingMs) : null
+
+  return { energy: currentEnergy, maxRefillAt }
+}
+
+function useEnergy() {
+  const [energy, setEnergy] = useState(MAX_ENERGY)
+  const [nextRefillIn, setNextRefillIn] = useState<string>('')
+
+  const refresh = useCallback(() => {
+    const info = getEnergyInfo()
+    setEnergy(info.energy)
+    if (info.maxRefillAt) {
+      const diff = info.maxRefillAt.getTime() - Date.now()
+      const mins = Math.floor(diff / 60000)
+      const secs = Math.floor((diff % 60000) / 1000)
+      setNextRefillIn(`${mins}:${secs.toString().padStart(2, '0')}`)
+    } else {
+      setNextRefillIn('')
+    }
+  }, [])
+
+  useEffect(() => {
+    refresh()
+    const interval = setInterval(refresh, 1000)
+    return () => clearInterval(interval)
+  }, [refresh])
+
+  const useEnergy = useCallback(() => {
+    if (energy <= 0) return false
+    const newEnergy = energy - MATCH_COST
+    setEnergy(newEnergy)
+    localStorage.setItem('currentEnergy', String(newEnergy))
+    localStorage.setItem('lastEnergyTime', localStorage.getItem('lastEnergyTime') || String(Date.now()))
+    return true
+  }, [energy])
+
+  return { energy, maxEnergy: MAX_ENERGY, useEnergy, nextRefillIn, refresh }
+}
+
 export default function MatchTab() {
-  const { club, matchResult, matchHistory, simulateMatch, fetchHistory, createAiOpponent, isLoading, players } = useGameStore()
+  const { club, matchResult, matchHistory, simulateMatch, fetchHistory, createAiOpponent, isLoading, players, fetchProfile } = useGameStore()
   const [opponents, setOpponents] = useState<AiOpponent[]>([])
   const [selectedOpponent, setSelectedOpponent] = useState<AiOpponent | null>(null)
   const [matchPhase, setMatchPhase] = useState<'select' | 'live' | 'result'>('select')
@@ -48,10 +120,21 @@ export default function MatchTab() {
   const [liveMinute, setLiveMinute] = useState(0)
   const [liveScore, setLiveScore] = useState({ home: 0, away: 0 })
   const [loadingOpponents, setLoadingOpponents] = useState(false)
+  const [matchRewards, setMatchRewards] = useState<{ coins: number; gems: number; xp: number; result: string } | null>(null)
+  const timeoutRefs = useRef<NodeJS.Timeout[]>([])
+  const { energy, maxEnergy, useEnergy, nextRefillIn } = useEnergy()
 
   useEffect(() => {
     fetchHistory()
   }, [fetchHistory])
+
+  // Clean up timeouts on unmount
+  useEffect(() => {
+    return () => {
+      timeoutRefs.current.forEach(t => clearTimeout(t))
+      timeoutRefs.current = []
+    }
+  }, [])
 
   // Generate opponents when entering tab
   const loadOpponents = async () => {
@@ -79,10 +162,17 @@ export default function MatchTab() {
   const handleStartMatch = async () => {
     if (!selectedOpponent || !club) return
 
+    // Check energy
+    if (!useEnergy()) {
+      useGameStore.getState().addNotification('لا تملك طاقة كافية! انتظر التجديد', 'error')
+      return
+    }
+
     setMatchPhase('live')
     setLiveEvents([])
     setLiveMinute(0)
     setLiveScore({ home: 0, away: 0 })
+    setMatchRewards(null)
 
     await simulateMatch(club.id, selectedOpponent.id)
   }
@@ -108,22 +198,35 @@ export default function MatchTab() {
           }
 
           idx++
-          setTimeout(showNext, 800)
+          const t = setTimeout(showNext, 800)
+          timeoutRefs.current.push(t)
         } else {
           setLiveMinute(90)
-          setTimeout(() => setMatchPhase('result'), 1500)
+          const t = setTimeout(() => setMatchPhase('result'), 1500)
+          timeoutRefs.current.push(t)
         }
       }
 
-      setTimeout(showNext, 500)
+      const t = setTimeout(showNext, 500)
+      timeoutRefs.current.push(t)
     }
   }, [matchPhase, matchResult])
+
+  // Handle rewards from API response
+  useEffect(() => {
+    if (matchPhase === 'result' && matchResult) {
+      // The rewards come from the simulate match response now
+      // We need to update user profile to reflect new coins
+      fetchProfile()
+    }
+  }, [matchPhase, matchResult, fetchProfile])
 
   const handleNewMatch = () => {
     setMatchPhase('select')
     setSelectedOpponent(null)
     setLiveEvents([])
     setLiveScore({ home: 0, away: 0 })
+    setMatchRewards(null)
   }
 
   if (!club) return null
@@ -131,6 +234,17 @@ export default function MatchTab() {
   const avgOverall = players.filter(p => p.isStarter).length > 0
     ? Math.round(players.filter(p => p.isStarter).reduce((s, p) => s + p.overall, 0) / players.filter(p => p.isStarter).length)
     : 0
+
+  // Determine result
+  const getResultLabel = () => {
+    if (!matchResult) return ''
+    return matchResult.homeGoals > matchResult.awayGoals ? 'win' : matchResult.homeGoals < matchResult.awayGoals ? 'loss' : 'draw'
+  }
+
+  const result = getResultLabel()
+  const rewardCoins = result === 'win' ? 1500 : result === 'draw' ? 500 : 200
+  const rewardXp = result === 'win' ? 50 : result === 'draw' ? 20 : 10
+  const rewardGems = result === 'win' ? 5 : result === 'draw' ? 2 : 1
 
   return (
     <div className="space-y-4 pb-4">
@@ -147,6 +261,26 @@ export default function MatchTab() {
             <div className="text-center">
               <h3 className="text-white font-bold text-lg">⚽ اختر الخصم</h3>
               <p className="text-white/40 text-xs mt-1">قوة فريقك: {avgOverall} Overall</p>
+            </div>
+
+            {/* Energy Bar */}
+            <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-yellow-400" />
+                  <span className="text-white/60 text-xs font-bold">الطاقة</span>
+                </div>
+                <span className="text-yellow-400 text-xs font-bold">{energy}/{maxEnergy}</span>
+              </div>
+              <div className="w-full bg-white/10 rounded-full h-2.5">
+                <div
+                  className="bg-gradient-to-l from-yellow-400 to-yellow-500 h-2.5 rounded-full transition-all duration-300"
+                  style={{ width: `${(energy / maxEnergy) * 100}%` }}
+                />
+              </div>
+              {nextRefillIn && (
+                <p className="text-white/30 text-[10px] mt-1 text-center">التجديد التالي: {nextRefillIn}</p>
+              )}
             </div>
 
             {/* My Team Card */}
@@ -217,18 +351,23 @@ export default function MatchTab() {
             {/* Play Button */}
             <Button
               onClick={handleStartMatch}
-              disabled={!selectedOpponent || isLoading}
-              className="w-full h-14 bg-gradient-to-l from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold text-lg rounded-xl shadow-lg shadow-emerald-500/25"
+              disabled={!selectedOpponent || isLoading || energy <= 0}
+              className="w-full h-14 bg-gradient-to-l from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold text-lg rounded-xl shadow-lg shadow-emerald-500/25 disabled:opacity-50"
             >
               {isLoading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   جاري التحميل...
                 </div>
+              ) : energy <= 0 ? (
+                <div className="flex items-center gap-2">
+                  <Zap className="w-5 h-5" />
+                  لا تملك طاقة كافية
+                </div>
               ) : (
                 <>
                   <Play className="w-5 h-5 ml-2" />
-                  ابدأ المباراة
+                  ابدأ المباراة ({MATCH_COST} ⚡)
                 </>
               )}
             </Button>
@@ -427,22 +566,21 @@ export default function MatchTab() {
               </div>
             )}
 
-            {/* Rewards */}
+            {/* Rewards - Now using actual values from API */}
             <div className="bg-yellow-500/5 rounded-xl p-4 border border-yellow-500/20">
               <h4 className="text-yellow-400 text-xs font-bold mb-2">🎁 المكافآت</h4>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1">
                   <span>🪙</span>
-                  <span className="text-yellow-400 font-bold">
-                    {matchResult.homeGoals > matchResult.awayGoals ? '1,500' :
-                     matchResult.homeGoals === matchResult.awayGoals ? '500' : '200'}
-                  </span>
+                  <span className="text-yellow-400 font-bold">+{rewardCoins}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span>💎</span>
+                  <span className="text-purple-400 font-bold">+{rewardGems}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span>⭐</span>
-                  <span className="text-white/60 font-bold">
-                    +{matchResult.homeGoals > matchResult.awayGoals ? '50' : '10'} XP
-                  </span>
+                  <span className="text-white/60 font-bold">+{rewardXp} XP</span>
                 </div>
               </div>
             </div>
@@ -450,9 +588,10 @@ export default function MatchTab() {
             {/* Play Again */}
             <Button
               onClick={handleNewMatch}
-              className="w-full h-12 bg-gradient-to-l from-emerald-500 to-emerald-600 text-white font-bold rounded-xl"
+              disabled={energy <= 0}
+              className="w-full h-12 bg-gradient-to-l from-emerald-500 to-emerald-600 text-white font-bold rounded-xl disabled:opacity-50"
             >
-              🔄 لعب مباراة جديدة
+              🔄 لعب مباراة جديدة ({energy - 1 >= 0 ? '1 ⚡' : 'غير متاح'})
             </Button>
           </motion.div>
         )}

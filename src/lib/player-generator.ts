@@ -238,7 +238,7 @@ export function generatePlayersForClub(tier?: StarterPackTier): GeneratedPlayer[
       const stats = generateStatsForPosition(position, overall)
       const potential = Math.min(99, overall + randomInt(3, 15))
       const age = randomInt(18, 34)
-      const value = overall * 10000
+      const value = Math.round(Math.pow(overall, 2.2) * 50)
       const salary = Math.round(overall * 500 + randomInt(0, 5000))
 
       // Assign shirt number

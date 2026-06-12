@@ -26,13 +26,15 @@ function TournamentCard({
   onJoin,
   onViewStandings,
   clubId,
+  joinedTournamentIds,
 }: {
   tournament: Tournament
   onJoin: () => void
   onViewStandings: () => void
   clubId?: string
+  joinedTournamentIds: Set<string>
 }) {
-  const isJoined = false // We'll check from standings
+  const isJoined = joinedTournamentIds.has(tournament.id)
   const isFull = tournament.currentTeams >= tournament.maxTeams
   const isRegistration = tournament.status === 'registration'
 
@@ -87,14 +89,18 @@ function TournamentCard({
 
         {/* Actions */}
         <div className="flex gap-2 mt-3">
-          {isRegistration && !isFull && (
+          {isJoined ? (
+            <div className="flex-1 h-9 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-lg flex items-center justify-center text-xs font-bold">
+              منضم ✓
+            </div>
+          ) : isRegistration && !isFull ? (
             <Button
               onClick={onJoin}
               className="flex-1 h-9 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30 text-xs font-bold rounded-lg"
             >
               انضمام ✋
             </Button>
-          )}
+          ) : null}
           <Button
             onClick={onViewStandings}
             variant="ghost"
@@ -186,22 +192,43 @@ function StandingsView({ tournamentId, onBack }: { tournamentId: string; onBack:
 }
 
 export default function TournamentsTab() {
-  const { tournaments, fetchTournaments, joinTournament, seedTournaments, club } = useGameStore()
+  const { tournaments, fetchTournaments, joinTournament, seedTournaments, club, tournamentStandings, fetchStandings } = useGameStore()
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null)
+  const [joinedTournamentIds, setJoinedTournamentIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const load = async () => {
       await fetchTournaments()
-      // If no tournaments, seed them
-      if (tournaments.length === 0) {
-        await seedTournaments()
-      }
     }
     load()
-  }, [fetchTournaments, seedTournaments, tournaments.length])
+  }, [fetchTournaments])
+
+  // Check which tournaments the user has joined by checking standings
+  useEffect(() => {
+    const checkJoined = async () => {
+      const joined = new Set<string>()
+      for (const t of tournaments) {
+        try {
+          await fetchStandings(t.id)
+          const standings = useGameStore.getState().tournamentStandings[t.id] || []
+          if (standings.some(s => s.clubId === club?.id)) {
+            joined.add(t.id)
+          }
+        } catch {
+          // ignore
+        }
+      }
+      setJoinedTournamentIds(joined)
+    }
+    if (tournaments.length > 0 && club?.id) {
+      checkJoined()
+    }
+  }, [tournaments, club?.id])
 
   const handleJoin = async (tournamentId: string) => {
     await joinTournament(tournamentId)
+    // Mark as joined
+    setJoinedTournamentIds(prev => new Set([...prev, tournamentId]))
   }
 
   // If viewing standings
@@ -248,6 +275,7 @@ export default function TournamentsTab() {
               key={tournament.id}
               tournament={tournament}
               clubId={club?.id}
+              joinedTournamentIds={joinedTournamentIds}
               onJoin={() => handleJoin(tournament.id)}
               onViewStandings={() => setSelectedTournamentId(tournament.id)}
             />

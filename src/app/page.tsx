@@ -20,6 +20,7 @@ import PlayerDetailModal from '@/components/game/PlayerDetailModal'
 import PackOpeningModal from '@/components/game/PackOpeningModal'
 import KitCustomizer from '@/components/game/KitCustomizer'
 import AdminTab from '@/components/game/AdminTab'
+import NotificationToast from '@/components/game/NotificationToast'
 
 function TabContent() {
   const { currentTab } = useGameStore()
@@ -49,12 +50,14 @@ function TabContent() {
 }
 
 function MainGameScreen() {
-  const { fetchClub, fetchTournaments, seedTournaments, tournaments } = useGameStore()
+  const { fetchClub, fetchTournaments, seedTournaments } = useGameStore()
 
   useEffect(() => {
     const init = async () => {
       await fetchClub()
-      await fetchTournaments()
+      const result = await fetchTournaments()
+      // Only seed if no tournaments exist - check after fetch completes
+      const tournaments = useGameStore.getState().tournaments
       if (tournaments.length === 0) {
         await seedTournaments()
       }
@@ -111,6 +114,7 @@ export default function Home() {
 
   return (
     <div dir="rtl">
+      <NotificationToast />
       <AnimatePresence mode="wait">
         {currentScreen === 'auth' && (
           <motion.div

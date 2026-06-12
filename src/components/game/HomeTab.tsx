@@ -12,6 +12,7 @@ export default function HomeTab() {
     user, club, matchHistory, fetchHistory, claimDailyReward, watchAd, isLoading,
     gameEvents, fetchGameEvents, achievements, fetchAchievements,
     currentSeason, fetchSeason, leaderboard, fetchLeaderboard,
+    upgradeStadium,
   } = useGameStore()
 
   useEffect(() => {
@@ -218,7 +219,13 @@ export default function HomeTab() {
               <p className="text-white/40 text-xs">المستوى {club.stadiumLevel}</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="text-emerald-400 text-xs h-8 hover:bg-emerald-500/10">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={upgradeStadium}
+            disabled={club.stadiumLevel >= 5}
+            className="text-emerald-400 text-xs h-8 hover:bg-emerald-500/10"
+          >
             ترقية ⬆️
           </Button>
         </div>

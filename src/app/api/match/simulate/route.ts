@@ -6,6 +6,13 @@ function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
+// Match reward config
+const MATCH_REWARDS = {
+  win: { coins: 1500, xp: 50, gems: 5 },
+  draw: { coins: 500, xp: 20, gems: 2 },
+  loss: { coins: 200, xp: 10, gems: 1 },
+}
+
 export async function POST(request: NextRequest) {
   try {
     const userId = request.headers.get('x-user-id')
@@ -118,68 +125,75 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Update club records
-    const homeUpdates: Record<string, number> = {}
-    const awayUpdates: Record<string, number> = {}
+    // Determine result for user's club
+    const isHome = userClub.id === homeClubId
+    const userGoals = isHome ? matchData.homeGoals : matchData.awayGoals
+    const opponentGoals = isHome ? matchData.awayGoals : matchData.homeGoals
+    const result = userGoals > opponentGoals ? 'win' : userGoals < opponentGoals ? 'loss' : 'draw'
+    const rewards = MATCH_REWARDS[result]
+
+    // FIX: Use increment for club stats instead of absolute values
+    const homeUpdates: Record<string, any> = {}
+    const awayUpdates: Record<string, any> = {}
 
     if (matchData.homeGoals > matchData.awayGoals) {
-      homeUpdates.wins = 1
-      awayUpdates.losses = 1
+      homeUpdates.wins = { increment: 1 }
+      awayUpdates.losses = { increment: 1 }
     } else if (matchData.homeGoals < matchData.awayGoals) {
-      homeUpdates.losses = 1
-      awayUpdates.wins = 1
+      homeUpdates.losses = { increment: 1 }
+      awayUpdates.wins = { increment: 1 }
     } else {
-      homeUpdates.draws = 1
-      awayUpdates.draws = 1
+      homeUpdates.draws = { increment: 1 }
+      awayUpdates.draws = { increment: 1 }
     }
-    homeUpdates.goalsFor = matchData.homeGoals
-    homeUpdates.goalsAgainst = matchData.awayGoals
-    awayUpdates.goalsFor = matchData.awayGoals
-    awayUpdates.goalsAgainst = matchData.homeGoals
+    homeUpdates.goalsFor = { increment: matchData.homeGoals }
+    homeUpdates.goalsAgainst = { increment: matchData.awayGoals }
+    awayUpdates.goalsFor = { increment: matchData.awayGoals }
+    awayUpdates.goalsAgainst = { increment: matchData.homeGoals }
 
-    await db.$transaction([
-      db.club.update({
-        where: { id: homeClubId },
-        data: homeUpdates,
-      }),
-      db.club.update({
-        where: { id: awayClubId },
-        data: awayUpdates,
-      }),
-    ])
+    // Update club stats
+    await db.club.update({ where: { id: homeClubId }, data: homeUpdates })
+    await db.club.update({ where: { id: awayClubId }, data: awayUpdates })
+
+    // Award match rewards to the user
+    const updatedUser = await db.user.update({
+      where: { id: userId },
+      data: {
+        coins: { increment: rewards.coins },
+        gems: { increment: rewards.gems },
+        xp: { increment: rewards.xp },
+        totalWins: result === 'win' ? { increment: 1 } : undefined,
+      },
+    })
 
     // Update player fitness and form for starters
     const homeStarters = homeClub.players.filter(p => p.isStarter)
     const awayStarters = awayClub.players.filter(p => p.isStarter)
 
-    const playerUpdates = []
-
+    // Update home starters
     for (const player of homeStarters) {
       const fitnessLoss = randomInt(5, 15)
       const formChange = randomInt(-5, 10)
-      playerUpdates.push(
-        db.player.update({
-          where: { id: player.id },
-          data: {
-            fitness: Math.max(10, player.fitness - fitnessLoss),
-            form: Math.min(99, Math.max(20, player.form + formChange)),
-          },
-        })
-      )
+      await db.player.update({
+        where: { id: player.id },
+        data: {
+          fitness: Math.max(10, player.fitness - fitnessLoss),
+          form: Math.min(99, Math.max(20, player.form + formChange)),
+        },
+      })
     }
 
+    // Update away starters
     for (const player of awayStarters) {
       const fitnessLoss = randomInt(5, 15)
       const formChange = randomInt(-5, 10)
-      playerUpdates.push(
-        db.player.update({
-          where: { id: player.id },
-          data: {
-            fitness: Math.max(10, player.fitness - fitnessLoss),
-            form: Math.min(99, Math.max(20, player.form + formChange)),
-          },
-        })
-      )
+      await db.player.update({
+        where: { id: player.id },
+        data: {
+          fitness: Math.max(10, player.fitness - fitnessLoss),
+          form: Math.min(99, Math.max(20, player.form + formChange)),
+        },
+      })
     }
 
     // Non-starters recover some fitness
@@ -187,42 +201,36 @@ export async function POST(request: NextRequest) {
     const awayBench = awayClub.players.filter(p => !p.isStarter)
 
     for (const player of [...homeBench, ...awayBench]) {
-      playerUpdates.push(
-        db.player.update({
-          where: { id: player.id },
-          data: {
-            fitness: Math.min(100, player.fitness + randomInt(5, 15)),
-          },
-        })
-      )
+      await db.player.update({
+        where: { id: player.id },
+        data: {
+          fitness: Math.min(100, player.fitness + randomInt(5, 15)),
+        },
+      })
     }
 
     // Update morale based on result
     if (matchData.homeGoals > matchData.awayGoals) {
-      playerUpdates.push(
-        db.club.update({
-          where: { id: homeClubId },
-          data: { morale: Math.min(100, homeClub.morale + randomInt(2, 5)) },
-        }),
-        db.club.update({
-          where: { id: awayClubId },
-          data: { morale: Math.max(20, awayClub.morale - randomInt(2, 5)) },
-        })
-      )
+      await db.club.update({
+        where: { id: homeClubId },
+        data: { morale: Math.min(100, homeClub.morale + randomInt(2, 5)) },
+      })
+      await db.club.update({
+        where: { id: awayClubId },
+        data: { morale: Math.max(20, awayClub.morale - randomInt(2, 5)) },
+      })
     } else if (matchData.homeGoals < matchData.awayGoals) {
-      playerUpdates.push(
-        db.club.update({
-          where: { id: awayClubId },
-          data: { morale: Math.min(100, awayClub.morale + randomInt(2, 5)) },
-        }),
-        db.club.update({
-          where: { id: homeClubId },
-          data: { morale: Math.max(20, homeClub.morale - randomInt(2, 5)) },
-        })
-      )
+      await db.club.update({
+        where: { id: awayClubId },
+        data: { morale: Math.min(100, awayClub.morale + randomInt(2, 5)) },
+      })
+      await db.club.update({
+        where: { id: homeClubId },
+        data: { morale: Math.max(20, homeClub.morale - randomInt(2, 5)) },
+      })
     }
 
-    await db.$transaction(playerUpdates)
+    const { password: _, ...userWithoutPassword } = updatedUser
 
     return NextResponse.json({
       success: true,
@@ -235,6 +243,13 @@ export async function POST(request: NextRequest) {
           awayStrength: matchData.awayStrength,
           events: matchData.events,
         },
+        rewards: {
+          coins: rewards.coins,
+          gems: rewards.gems,
+          xp: rewards.xp,
+          result,
+        },
+        user: userWithoutPassword,
       },
     })
   } catch (error) {

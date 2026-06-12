@@ -355,6 +355,8 @@ interface GameStore {
   // Settings
   toggleSound: () => Promise<void>
   updateKit: (kitStyle: string, kitPattern: string) => Promise<void>
+  upgradeStadium: () => Promise<void>
+  updateClub: (data: { name?: string; logo?: string; primaryColor?: string; secondaryColor?: string; formation?: string }) => Promise<void>
 
   // Admin
   adminTab: string
@@ -922,6 +924,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
         set({ club: { ...club, kitStyle, kitPattern } })
       }
       get().addNotification('تم تحديث طقم الفريق! 👕', 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  upgradeStadium: async () => {
+    try {
+      const data = await apiCall('/api/club/stadium-upgrade', { method: 'POST' })
+      const updatedClub = data.data.club as Club
+      const updatedUser = data.data.user as User
+      set({ club: updatedClub, user: updatedUser })
+      get().addNotification(`تم ترقية الملعب إلى المستوى ${data.data.newLevel}! 🏟️`, 'success')
+    } catch (error) {
+      get().addNotification((error as Error).message, 'error')
+    }
+  },
+
+  updateClub: async (updateData) => {
+    try {
+      const data = await apiCall('/api/club/update', {
+        method: 'PUT',
+        body: JSON.stringify(updateData),
+      })
+      const updatedClub = data.data as Club
+      set({ club: updatedClub, players: updatedClub.players || [] })
+      get().addNotification('تم تحديث النادي بنجاح! ✨', 'success')
     } catch (error) {
       get().addNotification((error as Error).message, 'error')
     }
