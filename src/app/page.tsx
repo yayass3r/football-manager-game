@@ -5,6 +5,7 @@ import { useGameStore } from '@/lib/game-store'
 import { motion, AnimatePresence } from 'framer-motion'
 import AuthScreen from '@/components/game/AuthScreen'
 import ClubCreationScreen from '@/components/game/ClubCreationScreen'
+import StarterPackReveal from '@/components/game/StarterPackReveal'
 import TopBar from '@/components/game/TopBar'
 import BottomNav from '@/components/game/BottomNav'
 import HomeTab from '@/components/game/HomeTab'
@@ -76,7 +77,7 @@ function MainGameScreen() {
 }
 
 export default function Home() {
-  const { currentScreen, user } = useGameStore()
+  const { currentScreen, user, starterPack, dismissStarterReveal } = useGameStore()
 
   // Auto-login check on mount
   useEffect(() => {
@@ -130,6 +131,20 @@ export default function Home() {
             exit={{ opacity: 0, x: -50 }}
           >
             <ClubCreationScreen />
+          </motion.div>
+        )}
+
+        {currentScreen === 'starter-reveal' && starterPack && (
+          <motion.div
+            key="starter-reveal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <StarterPackReveal
+              pack={starterPack}
+              onContinue={dismissStarterReveal}
+            />
           </motion.div>
         )}
 

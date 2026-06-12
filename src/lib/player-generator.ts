@@ -1,5 +1,24 @@
 // Player generation logic for football manager game
 
+export type StarterPackTier = 'bronze' | 'silver' | 'gold' | 'legendary'
+
+export const tierConfig: Record<StarterPackTier, { minOverall: number; maxOverall: number; label: string; emoji: string; color: string; chance: number }> = {
+  bronze: { minOverall: 45, maxOverall: 65, label: 'برونزي', emoji: '🥉', color: '#cd7f32', chance: 0.35 },
+  silver: { minOverall: 55, maxOverall: 75, label: 'فضي', emoji: '🥈', color: '#c0c0c0', chance: 0.35 },
+  gold: { minOverall: 65, maxOverall: 85, label: 'ذهبي', emoji: '🥇', color: '#ffd700', chance: 0.22 },
+  legendary: { minOverall: 78, maxOverall: 92, label: 'أسطوري', emoji: '💎', color: '#9b59b6', chance: 0.08 },
+}
+
+export function getRandomStarterTier(): StarterPackTier {
+  const rand = Math.random()
+  let cumulative = 0
+  for (const [tier, config] of Object.entries(tierConfig)) {
+    cumulative += config.chance
+    if (rand <= cumulative) return tier as StarterPackTier
+  }
+  return 'bronze'
+}
+
 interface GeneratedPlayer {
   name: string
   position: string
@@ -198,16 +217,24 @@ function generateStatsForPosition(position: string, baseOverall: number): {
   }
 }
 
-export function generatePlayersForClub(): GeneratedPlayer[] {
+export function generatePlayersForClub(tier?: StarterPackTier): GeneratedPlayer[] {
   const players: GeneratedPlayer[] = []
   let shirtIdx = 0
   const usedShirtNumbers = new Set<number>()
+
+  // Determine overall range based on tier
+  const minOverall = tier ? tierConfig[tier].minOverall : 55
+  const maxOverall = tier ? tierConfig[tier].maxOverall : 85
 
   for (const { position, count } of positionDistribution) {
     const availableNumbers = positionShirtNumbers[position] || []
 
     for (let i = 0; i < count; i++) {
-      const overall = randomInt(55, 85)
+      // Starters (first 11) get higher overall, bench gets lower
+      const isStarterSlot = shirtIdx < 11
+      const overallMin = isStarterSlot ? Math.round(minOverall + (maxOverall - minOverall) * 0.4) : minOverall
+      const overallMax = isStarterSlot ? maxOverall : Math.round(minOverall + (maxOverall - minOverall) * 0.7)
+      const overall = randomInt(overallMin, overallMax)
       const stats = generateStatsForPosition(position, overall)
       const potential = Math.min(99, overall + randomInt(3, 15))
       const age = randomInt(18, 34)

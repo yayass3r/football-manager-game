@@ -218,7 +218,17 @@ export interface SeasonData {
 
 export type TabType = 'home' | 'squad' | 'match' | 'market' | 'tournaments' | 'packs' | 'leaderboard' | 'achievements' | 'admin'
 
-export type GameScreen = 'auth' | 'club-creation' | 'main'
+export type GameScreen = 'auth' | 'club-creation' | 'main' | 'starter-reveal'
+
+export interface StarterPackInfo {
+  tier: 'bronze' | 'silver' | 'gold' | 'legendary'
+  label: string
+  emoji: string
+  color: string
+  avgOverall: number
+  bestPlayer: { name: string; overall: number; position: string } | null
+  playerCount: number
+}
 
 export interface Notification {
   id: string
@@ -270,12 +280,14 @@ interface GameStore {
   gameEvents: GameEventData[]
   currentSeason: SeasonData | null
   showPackOpening: boolean
+  starterPack: StarterPackInfo | null
 
   // Auth
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, username?: string) => Promise<void>
   logout: () => void
   setAuthMode: (mode: 'login' | 'register') => void
+  dismissStarterReveal: () => void
 
   // Navigation
   setTab: (tab: TabType) => void
@@ -413,6 +425,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   gameEvents: [],
   currentSeason: null,
   showPackOpening: false,
+  starterPack: null,
 
   // Admin state
   adminTab: 'dashboard',
@@ -458,15 +471,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
         body: JSON.stringify({ email, password, username }),
       })
       const user = data.data as User
+      const club = data.data.club || null
+      const players = club?.players || []
+      const starterPack = data.starterPack || null
       localStorage.setItem('userId', user.id)
       set({
         user,
-        club: null,
-        players: [],
-        currentScreen: 'club-creation',
+        club,
+        players,
+        starterPack,
+        currentScreen: starterPack ? 'starter-reveal' : (club ? 'main' : 'club-creation'),
         isLoading: false,
       })
-      get().addNotification('تم إنشاء الحساب بنجاح!', 'success')
+      if (starterPack) {
+        get().addNotification(`حصلت على حزمة ${starterPack.label} ${starterPack.emoji}!`, 'success')
+      } else {
+        get().addNotification('تم إنشاء الحساب بنجاح!', 'success')
+      }
     } catch (error) {
       set({ isLoading: false })
       get().addNotification((error as Error).message, 'error')
@@ -493,10 +514,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       gameEvents: [],
       currentSeason: null,
       showPackOpening: false,
+      starterPack: null,
     })
   },
 
   setAuthMode: (mode) => set({ authMode: mode }),
+
+  dismissStarterReveal: () => {
+    set({ currentScreen: 'main', starterPack: null })
+    // Seed tournaments after entering main game
+    get().seedTournaments()
+  },
 
   // Navigation
   setTab: (tab) => set({ currentTab: tab }),
