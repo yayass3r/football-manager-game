@@ -35,9 +35,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Normalize email to lowercase
+    const normalizedEmail = email.toLowerCase().trim()
+
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       return NextResponse.json(
         { success: false, error: 'صيغة البريد الإلكتروني غير صحيحة' },
         { status: 400 }
@@ -53,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     // Check if email already exists
     const existingUser = await db.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     })
 
     if (existingUser) {
@@ -64,7 +67,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Auto-generate username from email if not provided
-    const finalUsername = username || email.split('@')[0]
+    let finalUsername = (username || normalizedEmail.split('@')[0]).trim()
+    
+    // Validate username length
+    if (finalUsername.length < 3) {
+      finalUsername = 'لاعب_' + Date.now().toString(36)
+    }
+    if (finalUsername.length > 20) {
+      finalUsername = finalUsername.substring(0, 20)
+    }
+
+    // Check username uniqueness and append number if needed
+    let usernameAttempt = finalUsername
+    let usernameCounter = 1
+    while (true) {
+      const existingUsername = await db.user.findFirst({
+        where: { username: usernameAttempt },
+      })
+      if (!existingUsername) break
+      usernameAttempt = `${finalUsername}_${usernameCounter}`
+      usernameCounter++
+      if (usernameCounter > 100) break // Safety limit
+    }
+    finalUsername = usernameAttempt
 
     const hashedPassword = await hashPassword(password)
 
@@ -72,7 +97,7 @@ export async function POST(request: NextRequest) {
     const user = await db.user.create({
       data: {
         username: finalUsername,
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
         coins: 5000,
         gems: 50,

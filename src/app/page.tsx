@@ -93,8 +93,13 @@ export default function Home() {
             headers: { 'x-user-id': userId, 'Content-Type': 'application/json' },
           })
           const data = await res.json()
-          if (data.success) {
+          if (data.success && data.data) {
             const u = data.data
+            // Check if user is banned
+            if (u.isBanned) {
+              localStorage.removeItem('userId')
+              return
+            }
             useGameStore.setState({
               user: u,
               club: u.club || null,
@@ -105,7 +110,9 @@ export default function Home() {
             localStorage.removeItem('userId')
           }
         } catch {
-          localStorage.removeItem('userId')
+          // Network error - don't remove userId, user might just be offline
+          // Just show auth screen for now
+          useGameStore.setState({ currentScreen: 'auth' })
         }
       }
       fetchProfile()

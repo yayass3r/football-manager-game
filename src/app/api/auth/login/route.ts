@@ -14,8 +14,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Normalize email to lowercase
+    const normalizedEmail = email.toLowerCase().trim()
+
     const user = await db.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
       include: { club: true },
     })
 
@@ -23,6 +26,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' },
         { status: 401 }
+      )
+    }
+
+    // Check if user is banned
+    if (user.isBanned) {
+      return NextResponse.json(
+        { success: false, error: `تم حظر هذا الحساب${user.banReason ? ': ' + user.banReason : ''}` },
+        { status: 403 }
       )
     }
 
@@ -44,11 +55,26 @@ export async function POST(request: NextRequest) {
         const players = await db.player.findMany({
           where: { clubId: club.id },
         })
+        // Sort: starters first, then by overall descending
+        players.sort((a: any, b: any) => {
+          if (a.isStarter !== b.isStarter) return b.isStarter ? 1 : -1
+          return b.overall - a.overall
+        })
         clubWithPlayers = { ...club, players }
       }
     }
 
     const { password: _, ...userWithoutPassword } = user
+
+    // Update last login timestamp
+    try {
+      await db.user.update({
+        where: { id: user.id },
+        data: { updatedAt: new Date() },
+      })
+    } catch {
+      // Non-critical - don't fail login if this fails
+    }
 
     // Return with properly structured club
     const responseData = {

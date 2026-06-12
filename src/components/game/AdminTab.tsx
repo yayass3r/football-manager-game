@@ -36,6 +36,19 @@ export default function AdminTab() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [formData, setFormData] = useState<any>({})
 
+  // Economy form state (moved from renderEconomy to fix hooks violation)
+  const [econAction, setEconAction] = useState('addAllCoins')
+  const [econAmount, setEconAmount] = useState(1000)
+  const [econUserId, setEconUserId] = useState('')
+
+  // Announcement form state (moved from renderAnnouncements to fix hooks violation)
+  const [annTitle, setAnnTitle] = useState('')
+  const [annMessage, setAnnMessage] = useState('')
+  const [annType, setAnnType] = useState('announcement')
+
+  // Pagination state
+  const { adminPagination } = useGameStore()
+
   useEffect(() => {
     if (user?.isAdmin) {
       fetchAdminDashboard()
@@ -313,6 +326,29 @@ export default function AdminTab() {
 
       {adminUsers.length === 0 && (
         <p className="text-white/30 text-center text-sm py-10">لا يوجد مستخدمون</p>
+      )}
+
+      {/* Pagination */}
+      {adminPagination.pages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-3">
+          <button
+            onClick={() => fetchAdminUsers(Math.max(1, adminPagination.page - 1), searchTerm)}
+            disabled={adminPagination.page <= 1}
+            className="bg-white/5 text-white/50 px-3 py-1.5 rounded-lg text-xs disabled:opacity-30 hover:bg-white/10"
+          >
+            السابق
+          </button>
+          <span className="text-white/40 text-xs">
+            {adminPagination.page} / {adminPagination.pages}
+          </span>
+          <button
+            onClick={() => fetchAdminUsers(Math.min(adminPagination.pages, adminPagination.page + 1), searchTerm)}
+            disabled={adminPagination.page >= adminPagination.pages}
+            className="bg-white/5 text-white/50 px-3 py-1.5 rounded-lg text-xs disabled:opacity-30 hover:bg-white/10"
+          >
+            التالي
+          </button>
+        </div>
       )}
     </div>
   )
@@ -691,13 +727,8 @@ export default function AdminTab() {
   )
 
   // ==================== ECONOMY ====================
-  const renderEconomy = () => {
-    const [econAction, setEconAction] = useState('addAllCoins')
-    const [econAmount, setEconAmount] = useState(1000)
-    const [econUserId, setEconUserId] = useState('')
-
-    return (
-      <div className="space-y-4">
+  const renderEconomy = () => (
+    <div className="space-y-4">
         <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/5 rounded-xl p-4 border border-yellow-500/10">
           <h3 className="text-yellow-400 font-bold text-sm mb-3">💰 إدارة الاقتصاد</h3>
 
@@ -707,7 +738,7 @@ export default function AdminTab() {
               <select
                 value={econAction}
                 onChange={(e) => setEconAction(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:border-emerald-400 focus:outline-none"
+                className="w-full bg-[#1a2a40] border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:border-emerald-400 focus:outline-none"
               >
                 <option value="addAllCoins">إضافة عملات لجميع المستخدمين</option>
                 <option value="addAllGems">إضافة جواهر لجميع المستخدمين</option>
@@ -718,7 +749,7 @@ export default function AdminTab() {
               </select>
             </div>
 
-            {econAction.includes('All') === false && (
+            {!econAction.includes('All') && (
               <div>
                 <label className="text-white/60 text-[10px] block mb-1">معرف المستخدم</label>
                 <input
@@ -742,7 +773,12 @@ export default function AdminTab() {
             </div>
 
             <button
-              onClick={() => adminEconomyAction(econAction, econUserId || 'all', econAmount)}
+              onClick={() => {
+                if (!econAction.includes('All') && !econUserId.trim()) {
+                  return
+                }
+                adminEconomyAction(econAction, econUserId || 'all', econAmount)
+              }}
               className="w-full bg-yellow-500/20 text-yellow-400 py-2 rounded-lg text-xs font-bold hover:bg-yellow-500/30"
             >
               تنفيذ الإجراء
@@ -766,17 +802,11 @@ export default function AdminTab() {
           </div>
         )}
       </div>
-    )
-  }
+  )
 
   // ==================== ANNOUNCEMENTS ====================
-  const renderAnnouncements = () => {
-    const [title, setTitle] = useState('')
-    const [message, setMessage] = useState('')
-    const [type, setType] = useState('announcement')
-
-    return (
-      <div className="space-y-4">
+  const renderAnnouncements = () => (
+    <div className="space-y-4">
         <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/5 rounded-xl p-4 border border-blue-500/10">
           <h3 className="text-blue-400 font-bold text-sm mb-3">📢 إرسال إعلان</h3>
 
@@ -784,9 +814,9 @@ export default function AdminTab() {
             <div>
               <label className="text-white/60 text-[10px] block mb-1">نوع الإعلان</label>
               <select
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:border-emerald-400 focus:outline-none"
+                value={annType}
+                onChange={(e) => setAnnType(e.target.value)}
+                className="w-full bg-[#1a2a40] border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:border-emerald-400 focus:outline-none"
               >
                 <option value="announcement">إعلان عام</option>
                 <option value="transfer_window">نافذة انتقالات</option>
@@ -799,8 +829,8 @@ export default function AdminTab() {
               <label className="text-white/60 text-[10px] block mb-1">العنوان</label>
               <input
                 type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                value={annTitle}
+                onChange={(e) => setAnnTitle(e.target.value)}
                 placeholder="عنوان الإعلان"
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-xs placeholder-white/30 focus:border-emerald-400 focus:outline-none"
               />
@@ -809,8 +839,8 @@ export default function AdminTab() {
             <div>
               <label className="text-white/60 text-[10px] block mb-1">الرسالة</label>
               <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                value={annMessage}
+                onChange={(e) => setAnnMessage(e.target.value)}
                 placeholder="نص الإعلان..."
                 rows={4}
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-xs placeholder-white/30 focus:border-emerald-400 focus:outline-none resize-none"
@@ -819,13 +849,13 @@ export default function AdminTab() {
 
             <button
               onClick={() => {
-                if (title && message) {
-                  sendAnnouncement(title, message, type)
-                  setTitle('')
-                  setMessage('')
+                if (annTitle && annMessage) {
+                  sendAnnouncement(annTitle, annMessage, annType)
+                  setAnnTitle('')
+                  setAnnMessage('')
                 }
               }}
-              disabled={!title || !message}
+              disabled={!annTitle || !annMessage}
               className="w-full bg-blue-500/20 text-blue-400 py-2 rounded-lg text-xs font-bold hover:bg-blue-500/30 disabled:opacity-30"
             >
               📢 إرسال الإعلان لجميع المستخدمين
@@ -833,8 +863,7 @@ export default function AdminTab() {
           </div>
         </div>
       </div>
-    )
-  }
+  )
 
   // ==================== EDIT MODAL ====================
   const renderEditModal = () => {
@@ -1135,12 +1164,20 @@ export default function AdminTab() {
     <div className="space-y-3">
       {/* Admin Header */}
       <div className="bg-gradient-to-br from-amber-500/20 to-yellow-500/10 rounded-xl p-3 border border-yellow-500/20">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">👑</span>
-          <div>
-            <h2 className="text-yellow-400 font-bold text-sm">لوحة تحكم المسؤول</h2>
-            <p className="text-white/40 text-[10px]">التحكم الكامل باللعبة</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">👑</span>
+            <div>
+              <h2 className="text-yellow-400 font-bold text-sm">لوحة تحكم المسؤول</h2>
+              <p className="text-white/40 text-[10px]">التحكم الكامل باللعبة</p>
+            </div>
           </div>
+          <button
+            onClick={() => fetchAdminDashboard()}
+            className="bg-white/5 text-white/40 px-2 py-1 rounded-lg text-[10px] hover:bg-white/10 hover:text-white/60"
+          >
+            🔄 تحديث
+          </button>
         </div>
       </div>
 
