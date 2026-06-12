@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     const user = await db.user.findUnique({
       where: { email },
-      include: { club: { include: { players: true } } },
+      include: { club: true },
     })
 
     if (!user) {
@@ -35,11 +35,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get club with players separately since nested include isn't fully supported
+    let clubWithPlayers = null
+    if (user.club) {
+      // club comes as array from prisma-rest
+      const club = Array.isArray(user.club) ? user.club[0] : user.club
+      if (club) {
+        const players = await db.player.findMany({
+          where: { clubId: club.id },
+        })
+        clubWithPlayers = { ...club, players }
+      }
+    }
+
     const { password: _, ...userWithoutPassword } = user
+
+    // Return with properly structured club
+    const responseData = {
+      ...userWithoutPassword,
+      club: clubWithPlayers,
+    }
 
     return NextResponse.json({
       success: true,
-      data: userWithoutPassword,
+      data: responseData,
     })
   } catch (error) {
     console.error('Login error:', error)

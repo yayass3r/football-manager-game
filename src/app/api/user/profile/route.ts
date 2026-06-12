@@ -15,13 +15,7 @@ export async function GET(request: NextRequest) {
     const user = await db.user.findUnique({
       where: { id: userId },
       include: {
-        club: {
-          include: {
-            players: {
-              orderBy: { isStarter: 'desc' },
-            },
-          },
-        },
+        club: true,
         achievements: true,
       },
     })
@@ -33,11 +27,30 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Get club with players separately since nested include isn't fully supported
+    let clubWithPlayers = null
+    if (user.club) {
+      const club = Array.isArray(user.club) ? user.club[0] : user.club
+      if (club) {
+        const players = await db.player.findMany({
+          where: { clubId: club.id },
+        })
+        // Sort: starters first
+        players.sort((a: any, b: any) => (b.isStarter ? 1 : 0) - (a.isStarter ? 1 : 0))
+        clubWithPlayers = { ...club, players }
+      }
+    }
+
     const { password: _, ...userWithoutPassword } = user
+
+    const responseData = {
+      ...userWithoutPassword,
+      club: clubWithPlayers,
+    }
 
     return NextResponse.json({
       success: true,
-      data: userWithoutPassword,
+      data: responseData,
     })
   } catch (error) {
     console.error('Profile error:', error)
