@@ -61,3 +61,7 @@ download/
 upload/
 worklog.md
 Caddyfile
+simple-apk/app/build/
+android/.gradle/
+android/app/build/
+simple-apk/

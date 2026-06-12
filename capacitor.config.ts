@@ -5,11 +5,11 @@ const config: CapacitorConfig = {
   appName: 'نادي الاسطورة',
   webDir: 'out',
   server: {
-    // ⚠️ IMPORTANT: Change this to your Vercel deployment URL after deploying
-    // Example: url: 'https://legend-club.vercel.app'
-    // For local development, comment out the url line and use: npm run dev
-    // url: 'https://your-app.vercel.app',
-    androidScheme: 'https'
+    // Load the live Vercel deployment - all API routes work server-side
+    url: 'https://my-project-tvyas409.vercel.app',
+    androidScheme: 'https',
+    // Allow cleartext for local development
+    cleartext: true
   },
   plugins: {
     SplashScreen: {

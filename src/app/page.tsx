@@ -82,6 +82,13 @@ function MainGameScreen() {
 export default function Home() {
   const { currentScreen, user, starterPack, dismissStarterReveal } = useGameStore()
 
+  // Register Service Worker for PWA
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {})
+    }
+  }, [])
+
   // Auto-login check on mount
   useEffect(() => {
     const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null
