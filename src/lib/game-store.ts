@@ -459,6 +459,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         isLoading: false,
       })
       get().addNotification('مرحباً بك! تم تسجيل الدخول بنجاح', 'success')
+      // Request notification permission on login
+      import('@/lib/notifications').then(n => n.requestNotificationPermission())
     } catch (error) {
       set({ isLoading: false })
       get().addNotification((error as Error).message, 'error')
@@ -604,10 +606,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   trainPlayer: async (playerId) => {
     try {
+      const player = get().players.find(p => p.id === playerId)
       await apiCall(`/api/players/${playerId}/train`, { method: 'POST' })
       await get().fetchPlayers()
       await get().fetchProfile()
       get().addNotification('تم تدريب اللاعب بنجاح! 💪', 'success')
+      // Send native notification
+      if (player) {
+        import('@/lib/notifications').then(n => n.notifyTrainingComplete(player.name))
+      }
     } catch (error) {
       get().addNotification((error as Error).message, 'error')
     }
@@ -752,6 +759,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const updatedUser = data.data.user as User
       set({ user: updatedUser })
       get().addNotification(`تم استلام المكافأة! 🎁 ${data.data.reward.coins} عملة`, 'success')
+      // Send native notification
+      import('@/lib/notifications').then(n => n.notifyDailyReward())
     } catch (error) {
       get().addNotification((error as Error).message, 'error')
     }
